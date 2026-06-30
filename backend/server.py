@@ -150,10 +150,39 @@ def _seed_card(s):
                               "rating", "user_rating_count", "image_url", "open_now"]} | {"schedule": s["schedule"]}
 
 
+def _periods_to_schedule(periods):
+    """Google regularOpeningHours.periods -> 7-entry Monday-indexed schedule."""
+    if not periods:
+        return None
+    sched = [{"closed": True, "open": None, "close": None} for _ in range(7)]
+    for p in periods:
+        o = p.get("open")
+        if not o:
+            continue
+        gday = o.get("day", 0)  # Google: 0 = Sunday
+        mon = (gday + 6) % 7    # Monday-indexed
+        otime = f"{o.get('hour', 0):02d}:{o.get('minute', 0):02d}"
+        c = p.get("close")
+        if c and c.get("day") == gday:
+            ctime = f"{c.get('hour', 0):02d}:{c.get('minute', 0):02d}"
+        else:
+            ctime = "23:59"  # overnight or 24h
+        e = sched[mon]
+        if e["closed"]:
+            e["closed"], e["open"], e["close"] = False, otime, ctime
+        else:
+            if otime < e["open"]:
+                e["open"] = otime
+            if ctime > e["close"]:
+                e["close"] = ctime
+    return sched
+
+
 async def _google_text_search(query, lat, lng, radius, lang):
     url = "https://places.googleapis.com/v1/places:searchText"
     field_mask = ("places.id,places.displayName,places.formattedAddress,places.location,"
-                  "places.types,places.rating,places.userRatingCount,places.photos,places.currentOpeningHours")
+                  "places.types,places.rating,places.userRatingCount,places.photos,"
+                  "places.currentOpeningHours,places.regularOpeningHours")
     payload = {
         "textQuery": query, "languageCode": lang,
         "locationBias": {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": float(radius)}},
@@ -177,6 +206,7 @@ async def _google_text_search(query, lat, lng, radius, lang):
             "user_rating_count": p.get("userRatingCount", 0),
             "photo_name": photos[0]["name"] if photos else None, "image_url": None,
             "open_now": p.get("currentOpeningHours", {}).get("openNow"),
+            "schedule": _periods_to_schedule(p.get("regularOpeningHours", {}).get("periods")),
         })
     return out
 

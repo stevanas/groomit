@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ShopCard from "@/src/components/ShopCard";
 import CategoryChips from "@/src/components/CategoryChips";
+import TimePicker from "@/src/components/TimePicker";
 import MapShops from "@/src/components/MapShops";
 import { useShops } from "@/src/useShops";
 import { useI18n } from "@/src/i18n";
@@ -34,9 +35,12 @@ export default function BrowseScreen() {
   const [category, setCategory] = useState(params.category || "all");
   const [query, setQuery] = useState("");
   const [openNowOnly, setOpenNowOnly] = useState(false);
+  const [openUntil, setOpenUntil] = useState<string | null>(null);
   const [sort, setSort] = useState<"recommended" | "distance" | "rating">("recommended");
   const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+
+  const todayIdx = (new Date().getDay() + 6) % 7;
 
   // Keep filters in sync when arriving from the Find form with new params.
   useEffect(() => {
@@ -55,18 +59,26 @@ export default function BrowseScreen() {
     let res = shops.map((s) => ({ ...s, distanceKm: distanceKm(region, s.latitude, s.longitude) }));
     if (q) res = res.filter((s) => s.name.toLowerCase().includes(q) || (s.address || "").toLowerCase().includes(q));
     if (openNowOnly) res = res.filter((s) => s.open_now === true);
+    if (openUntil) {
+      res = res.filter((s) => {
+        if (!s.schedule) return true; // hours unknown -> keep visible
+        const d = s.schedule[todayIdx];
+        return d && !d.closed && d.close >= openUntil;
+      });
+    }
     if (sort === "rating") res = [...res].sort((a, b) => (b.rating || 0) - (a.rating || 0));
     else if (sort === "distance") res = [...res].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
     return res;
-  }, [shops, region, query, openNowOnly, sort]);
+  }, [shops, region, query, openNowOnly, openUntil, sort, todayIdx]);
 
   const hasActiveFilters =
-    category !== "all" || query.trim() !== "" || openNowOnly || sort !== "recommended";
+    category !== "all" || query.trim() !== "" || openNowOnly || openUntil !== null || sort !== "recommended";
 
   const clearFilters = () => {
     setCategory("all");
     setQuery("");
     setOpenNowOnly(false);
+    setOpenUntil(null);
     setSort("recommended");
   };
 
@@ -114,17 +126,21 @@ export default function BrowseScreen() {
           <Text style={[styles.filterText, openNowOnly && styles.filterTextActive]}>{t("filter.openNow")}</Text>
         </Pressable>
 
+        {hasActiveFilters && (
+          <Pressable style={styles.clearChip} onPress={clearFilters} testID="clear-filters">
+            <Ionicons name="close" size={15} color={colors.error} />
+          </Pressable>
+        )}
+      </View>
+
+      <View style={styles.filterRow}>
         <Pressable style={styles.sortChip} onPress={() => setSortOpen(true)} testID="sort-button">
           <Ionicons name="swap-vertical" size={15} color={colors.onSurfaceTertiary} />
           <Text style={styles.sortText}>{t(`sort.${sort}`)}</Text>
           <Ionicons name="chevron-down" size={13} color={colors.muted} />
         </Pressable>
 
-        {hasActiveFilters && (
-          <Pressable style={styles.clearChip} onPress={clearFilters} testID="clear-filters">
-            <Ionicons name="close" size={15} color={colors.error} />
-          </Pressable>
-        )}
+        <TimePicker value={openUntil} onChange={setOpenUntil} testID="filter-until" />
       </View>
 
       <Modal visible={sortOpen} transparent animationType="fade" onRequestClose={() => setSortOpen(false)}>
@@ -198,8 +214,8 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: colors.success, borderColor: colors.success },
   filterText: { fontSize: 13, fontWeight: "800", color: colors.success },
   filterTextActive: { color: colors.onBrand },
-  sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, flexShrink: 0, marginLeft: "auto" },
-  clearChip: { width: 36, height: 36, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.error, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, flexShrink: 0 },
+  clearChip: { width: 36, height: 36, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.error, alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: "auto" },
   sortText: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   sortSheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, paddingVertical: spacing.md, paddingTop: spacing.lg },

@@ -1,0 +1,71 @@
+import React, { useState } from "react";
+import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { colors, spacing, radius } from "@/src/theme";
+import { useI18n } from "@/src/i18n";
+
+const TIMES: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 15) {
+    TIMES.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+  }
+}
+
+export default function TimePicker({
+  value,
+  onChange,
+  testID,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  testID?: string;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const active = !!value;
+
+  return (
+    <>
+      <Pressable style={[styles.chip, active && styles.chipActive]} onPress={() => setOpen(true)} testID={testID}>
+        <Ionicons name="hourglass-outline" size={15} color={active ? colors.onAccent : colors.accent} />
+        <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
+          {value ? `${t("filter.until")} ${value}` : t("filter.until")}
+        </Text>
+        <Ionicons name="chevron-down" size={13} color={active ? colors.onAccent : colors.accent} />
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.title}>{t("filter.until")}</Text>
+            <ScrollView>
+              <Pressable style={styles.row} onPress={() => { onChange(null); setOpen(false); }} testID="time-any">
+                <Text style={[styles.rowText, !value && styles.rowActive]}>{t("filter.any")}</Text>
+                {!value && <Ionicons name="checkmark" size={20} color={colors.brand} />}
+              </Pressable>
+              {TIMES.map((tm) => (
+                <Pressable key={tm} style={styles.row} onPress={() => { onChange(tm); setOpen(false); }} testID={`time-${tm}`}>
+                  <Text style={[styles.rowText, value === tm && styles.rowActive]}>{tm}</Text>
+                  {value === tm && <Ionicons name="checkmark" size={20} color={colors.brand} />}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
+  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { fontSize: 13, fontWeight: "800", color: colors.accent },
+  chipTextActive: { color: colors.onAccent },
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: "65%", paddingVertical: spacing.md, paddingTop: spacing.lg },
+  title: { fontSize: 13, fontWeight: "800", color: colors.muted, textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: spacing.xl, marginBottom: spacing.xs },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
+  rowText: { fontSize: 16, color: colors.onSurface },
+  rowActive: { fontWeight: "800", color: colors.brand },
+});
