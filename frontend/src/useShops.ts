@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Platform } from "react-native";
 import * as Location from "expo-location";
 import { apiGet } from "@/src/api";
@@ -12,7 +12,11 @@ export function useShops(category: string, opts: Opts = {}) {
   const [shops, setShops] = useState<any[]>([]);
   const [region, setRegion] = useState(center || DEFAULT);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const nextToken = useRef<string | null>(null);
+  const locRef = useRef(center || DEFAULT);
 
   const resolveLocation = useCallback(async () => {
     if (center) return center;
@@ -35,27 +39,55 @@ export function useShops(category: string, opts: Opts = {}) {
     }
   }, [locationQuery, lang, center?.latitude, center?.longitude]);
 
+  const fetchPage = useCallback(
+    async (loc: { latitude: number; longitude: number }, token?: string | null) => {
+      let url = `/places/nearby?lat=${loc.latitude}&lng=${loc.longitude}&radius=8000&category=${category}&day=${day}&lang=${lang}`;
+      if (token) url += `&page_token=${encodeURIComponent(token)}`;
+      return apiGet(url);
+    },
+    [category, day, lang],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    nextToken.current = null;
     try {
       const loc = await resolveLocation();
+      locRef.current = loc;
       setRegion(loc);
-      const data = await apiGet(
-        `/places/nearby?lat=${loc.latitude}&lng=${loc.longitude}&radius=8000&category=${category}&day=${day}&lang=${lang}`,
-      );
+      const data = await fetchPage(loc, null);
       setShops(data.results || []);
+      nextToken.current = data.next_page_token || null;
     } catch {
       setError("error");
       setShops([]);
     } finally {
       setLoading(false);
     }
-  }, [category, day, lang, resolveLocation]);
+  }, [resolveLocation, fetchPage]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading || !nextToken.current) return;
+    setLoadingMore(true);
+    try {
+      const data = await fetchPage(locRef.current, nextToken.current);
+      setShops((prev) => {
+        const seen = new Set(prev.map((s) => s.id));
+        const fresh = (data.results || []).filter((s: any) => !seen.has(s.id));
+        return [...prev, ...fresh];
+      });
+      nextToken.current = data.next_page_token || null;
+    } catch {
+      /* keep existing list on pagination error */
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [fetchPage, loadingMore, loading]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  return { shops, region, loading, error, reload: load };
+  return { shops, region, loading, loadingMore, hasMore: !!nextToken.current, error, reload: load, loadMore };
 }

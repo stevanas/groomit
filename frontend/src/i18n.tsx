@@ -91,6 +91,7 @@ const el: Dict = {
   "shop.hours": "Ωράριο λειτουργίας",
   "shop.reviews": "Κριτικές",
   "shop.noReviews": "Δεν υπάρχουν κριτικές ακόμη.",
+  "shop.moreReviews": "Δες όλες τις κριτικές στο Google",
   "shop.call": "Κλήση",
   "shop.directions": "Οδηγίες",
   "shop.closedLabel": "Κλειστά",
@@ -115,6 +116,7 @@ const el: Dict = {
   "support.processing": "Επεξεργασία…",
   "support.failed": "Η αγορά απέτυχε. Δοκίμασε ξανά.",
   "support.noPurchases": "Δεν βρέθηκαν προηγούμενες αγορές.",
+  "support.thanksAdvance": "Σε ευχαριστούμε εκ των προτέρων 💛",
   "profile.footer": "GR-oom It · βρες την καλύτερη φροντίδα για το κατοικίδιό σου",
 };
 
@@ -204,6 +206,7 @@ const en: Dict = {
   "shop.hours": "Opening hours",
   "shop.reviews": "Reviews",
   "shop.noReviews": "No reviews yet.",
+  "shop.moreReviews": "See all reviews on Google",
   "shop.call": "Call",
   "shop.directions": "Directions",
   "shop.closedLabel": "Closed",
@@ -228,6 +231,7 @@ const en: Dict = {
   "support.processing": "Processing…",
   "support.failed": "Purchase failed. Please try again.",
   "support.noPurchases": "No previous purchases found.",
+  "support.thanksAdvance": "Thank you in advance 💛",
   "profile.footer": "GR-oom It · find the best pet care nearby",
 };
 

@@ -171,15 +171,26 @@ export default function ShopDetail() {
           {googleReviews.length === 0 ? (
             <Text style={styles.noReviews}>{t("shop.noReviews")}</Text>
           ) : (
-            googleReviews.map((r: any, i: number) => (
-              <View key={i} style={styles.reviewCard} testID={`review-${i}`}>
-                <View style={styles.reviewTop}>
-                  <Text style={styles.reviewAuthor}>{r.author}</Text>
-                  <Stars value={r.rating || 0} size={13} />
+            <>
+              {googleReviews.map((r: any, i: number) => (
+                <View key={i} style={styles.reviewCard} testID={`review-${i}`}>
+                  <View style={styles.reviewTop}>
+                    <Text style={styles.reviewAuthor}>{r.author}</Text>
+                    <Stars value={r.rating || 0} size={13} />
+                  </View>
+                  {r.text ? <Text style={styles.reviewText} numberOfLines={5}>{r.text}</Text> : null}
                 </View>
-                {r.text ? <Text style={styles.reviewText} numberOfLines={5}>{r.text}</Text> : null}
-              </View>
-            ))
+              ))}
+              <Pressable
+                style={styles.moreReviews}
+                testID="more-reviews"
+                onPress={() => Linking.openURL(`https://search.google.com/local/reviews?placeid=${shop.id}`)}
+              >
+                <Ionicons name="logo-google" size={16} color={colors.brand} />
+                <Text style={styles.moreReviewsText}>{t("shop.moreReviews")}</Text>
+                <Ionicons name="open-outline" size={15} color={colors.brand} />
+              </Pressable>
+            </>
           )}
         </View>
       </ScrollView>
@@ -256,6 +267,8 @@ const styles = StyleSheet.create({
   reviewTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   reviewAuthor: { fontSize: 14, fontWeight: "800", color: colors.onSurface },
   reviewText: { fontSize: 14, color: colors.onSurfaceTertiary, lineHeight: 20 },
+  moreReviews: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingVertical: spacing.md, marginTop: spacing.sm },
+  moreReviewsText: { fontSize: 14, fontWeight: "800", color: colors.brand },
   ctaBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md, backgroundColor: colors.surfaceSecondary, borderTopWidth: 1, borderTopColor: colors.border },
   callBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingHorizontal: spacing.xl, height: 54, borderRadius: radius.pill, borderWidth: 1.5, borderColor: colors.brand },
   callText: { color: colors.brand, fontWeight: "800", fontSize: 16 },

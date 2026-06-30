@@ -49,7 +49,7 @@ export default function BrowseScreen() {
   }, [params.category]);
 
   const day = params.day ? Number(params.day) : -1;
-  const { shops, region, loading, error, reload } = useShops(category, {
+  const { shops, region, loading, loadingMore, error, reload, loadMore } = useShops(category, {
     locationQuery: params.location,
     day,
     lang,
@@ -220,7 +220,14 @@ export default function BrowseScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: spacing.xxxl }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          ListFooterComponent={<AdBanner />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            <View>
+              {loadingMore && <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} />}
+              <AdBanner />
+            </View>
+          }
           refreshControl={<RefreshControl refreshing={false} onRefresh={reload} tintColor={colors.brand} />}
         />
       )}

@@ -185,24 +185,27 @@ def _periods_to_schedule(periods):
     return sched
 
 
-async def _google_text_search(query, lat, lng, radius, lang):
+async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
     url = "https://places.googleapis.com/v1/places:searchText"
     field_mask = ("places.id,places.displayName,places.formattedAddress,places.location,"
                   "places.types,places.rating,places.userRatingCount,places.photos,"
-                  "places.currentOpeningHours,places.regularOpeningHours")
+                  "places.currentOpeningHours,places.regularOpeningHours,nextPageToken")
     payload = {
         "textQuery": query, "languageCode": lang,
         "locationBias": {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": float(radius)}},
-        "maxResultCount": 20,
+        "pageSize": 20,
     }
+    if page_token:
+        payload["pageToken"] = page_token
     headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY, "X-Goog-FieldMask": field_mask}
     async with httpx.AsyncClient(timeout=15.0) as hc:
         resp = await hc.post(url, json=payload, headers=headers)
     if resp.status_code != 200:
         logger.error("Google places error %s: %s", resp.status_code, resp.text[:300])
         raise HTTPException(status_code=502, detail="Places provider error")
+    data = resp.json()
     out = []
-    for p in resp.json().get("places", []):
+    for p in data.get("places", []):
         name = p.get("displayName", {}).get("text", "")
         photos = p.get("photos", [])
         loc = p.get("location", {})
@@ -215,7 +218,7 @@ async def _google_text_search(query, lat, lng, radius, lang):
             "open_now": p.get("currentOpeningHours", {}).get("openNow"),
             "schedule": _periods_to_schedule(p.get("regularOpeningHours", {}).get("periods")),
         })
-    return out
+    return out, data.get("nextPageToken")
 
 
 @api_router.get("/places/autocomplete")
@@ -268,17 +271,19 @@ async def geocode(q: str, lang: str = "el"):
 @api_router.get("/places/nearby")
 async def places_nearby(lat: float, lng: float, radius: int = 8000,
                         category: Literal["all", "shop", "groomer", "both"] = "all",
-                        day: int = -1, lang: str = "el"):
+                        day: int = -1, lang: str = "el", page_token: Optional[str] = None):
     if GOOGLE_MAPS_API_KEY:
         query = {"groomer": "pet groomer", "shop": "pet store",
                  "both": "pet store and grooming"}.get(category, "pet store and pet groomer")
-        results = await _google_text_search(query, lat, lng, radius, lang)
-        # groomer/shop also keep "both"-style places; google classifies as one type only
+        results, next_token = await _google_text_search(query, lat, lng, radius, lang, page_token)
+        # Filter by category. "both" must show ONLY combo stores; groomer/shop also include "both".
         if category == "groomer":
             results = [r for r in results if r["category"] in ("groomer", "both")]
         elif category == "shop":
             results = [r for r in results if r["category"] in ("shop", "both")]
-        return {"results": results, "source": "google"}
+        elif category == "both":
+            results = [r for r in results if r["category"] == "both"]
+        return {"results": results, "next_page_token": next_token, "source": "google"}
     # Seed fallback — selecting groomer/shop also includes "both" stores
     def _matches(scat, q):
         if q == "all":
@@ -298,7 +303,7 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
         if 0 <= day <= 6 and s["schedule"][day]["closed"]:
             continue
         results.append(_seed_card(s))
-    return {"results": results, "source": "seed"}
+    return {"results": results, "next_page_token": None, "source": "seed"}
 
 
 @api_router.get("/places/photo")

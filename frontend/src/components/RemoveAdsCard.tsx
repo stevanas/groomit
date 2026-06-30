@@ -64,7 +64,7 @@ export default function RemoveAdsCard() {
         ) : (
           <>
             <Ionicons name="sparkles" size={18} color={colors.onBrand} />
-            <Text style={styles.buyText}>{t("support.buy")}</Text>
+            <Text style={styles.buyText} numberOfLines={1} adjustsFontSizeToFit>{t("support.buy")}</Text>
           </>
         )}
       </Pressable>
@@ -72,6 +72,8 @@ export default function RemoveAdsCard() {
       <Pressable style={styles.restoreBtn} onPress={onRestore} disabled={busy !== null} testID="restore-purchase">
         <Text style={styles.restoreText}>{busy === "restore" ? t("support.processing") : t("support.restore")}</Text>
       </Pressable>
+
+      <Text style={styles.thanksAdvance}>{t("support.thanksAdvance")}</Text>
     </View>
   );
 }
@@ -84,8 +86,9 @@ const styles = StyleSheet.create({
   icon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 16, fontWeight: "800", color: colors.onSurface },
   desc: { fontSize: 13, color: colors.muted, marginTop: 2, lineHeight: 18 },
-  buyBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, height: 50, borderRadius: radius.pill, backgroundColor: colors.brand },
-  buyText: { color: colors.onBrand, fontSize: 15, fontWeight: "800" },
-  restoreBtn: { alignItems: "center", justifyContent: "center", height: 36 },
+  buyBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, height: 52, borderRadius: radius.pill, backgroundColor: colors.brand, paddingHorizontal: spacing.md },
+  buyText: { color: colors.onBrand, fontSize: 15, fontWeight: "800", flexShrink: 1 },
+  restoreBtn: { alignItems: "center", justifyContent: "center", height: 32 },
   restoreText: { color: colors.muted, fontSize: 14, fontWeight: "700" },
+  thanksAdvance: { textAlign: "center", color: colors.muted, fontSize: 12, fontWeight: "600", marginTop: 2 },
 });
