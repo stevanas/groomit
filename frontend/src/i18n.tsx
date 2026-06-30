@@ -15,7 +15,7 @@ const el: Dict = {
   "tab.profile": "Προφίλ",
 
   "find.heading": "Τι ψάχνεις σήμερα;",
-  "find.sub": "Συμπλήρωσε τα κενά και βρες το τέλειο μέρος για το κατοικίδιό σου.",
+  "find.sub": "Βρες την καλύτερη φροντίδα για το κατοικίδιό σου. Συμπλήρωσε τα κενά παρακάτω.",
   "find.need": "Χρειάζομαι",
   "find.in": "στην περιοχή",
   "find.when": "για",
@@ -23,10 +23,10 @@ const el: Dict = {
   "find.search": "Αναζήτηση",
   "find.quick": "Γρήγορη αναζήτηση",
 
-  "type.all": "Κομμωτήριο ή Pet Shop",
+  "type.all": "Οποιοδήποτε",
   "type.groomer": "Κομμωτήριο",
   "type.shop": "Pet Shop",
-  "type.both": "Κομμωτήριο & Pet Shop",
+  "type.both": "Και τα δύο",
 
   "cat.all": "Όλα",
   "cat.groomer": "Κομμωτήρια",
@@ -53,7 +53,12 @@ const el: Dict = {
   "browse.results": "{count} αποτελέσματα",
   "browse.list": "Λίστα",
   "browse.map": "Χάρτης",
+  "browse.km": "χλμ",
   "filter.openNow": "Ανοιχτά τώρα",
+  "sort.label": "Ταξινόμηση",
+  "sort.recommended": "Προτεινόμενα",
+  "sort.distance": "Απόσταση",
+  "sort.rating": "Βαθμολογία",
 
   "common.open": "Ανοιχτό",
   "common.closed": "Κλειστό",
@@ -102,7 +107,7 @@ const en: Dict = {
   "tab.profile": "Profile",
 
   "find.heading": "What are you looking for today?",
-  "find.sub": "Fill in the blanks and find the perfect spot for your pet.",
+  "find.sub": "Find the best care for your pet. Just fill in the blanks below.",
   "find.need": "I need a",
   "find.in": "in",
   "find.when": "for",
@@ -110,10 +115,10 @@ const en: Dict = {
   "find.search": "Search",
   "find.quick": "Quick search",
 
-  "type.all": "Groomer or Pet Shop",
+  "type.all": "Either",
   "type.groomer": "Groomer",
   "type.shop": "Pet Shop",
-  "type.both": "Groomer & Pet Shop",
+  "type.both": "Both",
 
   "cat.all": "All",
   "cat.groomer": "Groomers",
@@ -140,7 +145,12 @@ const en: Dict = {
   "browse.results": "{count} results",
   "browse.list": "List",
   "browse.map": "Map",
+  "browse.km": "km",
   "filter.openNow": "Open now",
+  "sort.label": "Sort",
+  "sort.recommended": "Recommended",
+  "sort.distance": "Distance",
+  "sort.rating": "Rating",
 
   "common.open": "Open",
   "common.closed": "Closed",

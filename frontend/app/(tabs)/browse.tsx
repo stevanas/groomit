@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
-  View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable, TextInput, RefreshControl, Platform,
+  View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable, TextInput, RefreshControl, Platform, Modal, ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +14,17 @@ import { colors, spacing, radius, shadow } from "@/src/theme";
 
 const IS_WEB = Platform.OS === "web";
 
+function distanceKm(a: { latitude: number; longitude: number }, lat?: number, lng?: number) {
+  if (lat == null || lng == null) return null;
+  const R = 6371;
+  const dLat = ((lat - a.latitude) * Math.PI) / 180;
+  const dLng = ((lng - a.longitude) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.latitude * Math.PI) / 180) * Math.cos((lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
 export default function BrowseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -23,6 +34,8 @@ export default function BrowseScreen() {
   const [category, setCategory] = useState(params.category || "all");
   const [query, setQuery] = useState("");
   const [openNowOnly, setOpenNowOnly] = useState(false);
+  const [sort, setSort] = useState<"recommended" | "distance" | "rating">("recommended");
+  const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   // Keep filters in sync when arriving from the Find form with new params.
@@ -39,11 +52,13 @@ export default function BrowseScreen() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let res = shops;
+    let res = shops.map((s) => ({ ...s, distanceKm: distanceKm(region, s.latitude, s.longitude) }));
     if (q) res = res.filter((s) => s.name.toLowerCase().includes(q) || (s.address || "").toLowerCase().includes(q));
     if (openNowOnly) res = res.filter((s) => s.open_now === true);
+    if (sort === "rating") res = [...res].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    else if (sort === "distance") res = [...res].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
     return res;
-  }, [shops, query, openNowOnly]);
+  }, [shops, region, query, openNowOnly, sort]);
 
   const go = (s: any) => router.push(`/shop/${s.id}`);
 
@@ -88,7 +103,33 @@ export default function BrowseScreen() {
           <Ionicons name="time" size={14} color={openNowOnly ? colors.onBrand : colors.success} />
           <Text style={[styles.filterText, openNowOnly && styles.filterTextActive]}>{t("filter.openNow")}</Text>
         </Pressable>
+
+        <Pressable style={styles.sortChip} onPress={() => setSortOpen(true)} testID="sort-button">
+          <Ionicons name="swap-vertical" size={14} color={colors.onSurfaceTertiary} />
+          <Text style={styles.sortText}>{t(`sort.${sort}`)}</Text>
+        </Pressable>
       </View>
+
+      <Modal visible={sortOpen} transparent animationType="fade" onRequestClose={() => setSortOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setSortOpen(false)}>
+          <Pressable style={styles.sortSheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sortTitle}>{t("sort.label")}</Text>
+            <ScrollView>
+              {(["recommended", "distance", "rating"] as const).map((opt) => (
+                <Pressable
+                  key={opt}
+                  style={styles.sortRow}
+                  onPress={() => { setSort(opt); setSortOpen(false); }}
+                  testID={`sort-${opt}`}
+                >
+                  <Text style={[styles.sortRowText, sort === opt && styles.sortRowActive]}>{t(`sort.${opt}`)}</Text>
+                  {sort === opt && <Ionicons name="checkmark" size={20} color={colors.brand} />}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {!loading && !error && (
         <Text style={styles.count}>{t("browse.results", { count: filtered.length })}</Text>
@@ -134,11 +175,19 @@ const styles = StyleSheet.create({
   searchBar: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, borderRadius: radius.pill, paddingHorizontal: spacing.lg, height: 50, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, fontSize: 15, color: colors.onSurface },
   toggle: { width: 50, height: 50, borderRadius: radius.md, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
-  filterRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.xs },
+  filterRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.xs, alignItems: "center" },
   filterChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 34, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
   filterChipActive: { backgroundColor: colors.success, borderColor: colors.success },
   filterText: { fontSize: 13, fontWeight: "800", color: colors.success },
   filterTextActive: { color: colors.onBrand },
+  sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 34, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, marginLeft: "auto" },
+  sortText: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary },
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  sortSheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, paddingVertical: spacing.md, paddingTop: spacing.lg },
+  sortTitle: { fontSize: 13, fontWeight: "800", color: colors.muted, textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: spacing.xl, marginBottom: spacing.xs },
+  sortRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
+  sortRowText: { fontSize: 16, color: colors.onSurface },
+  sortRowActive: { fontWeight: "800", color: colors.brand },
   count: { fontSize: 13, color: colors.muted, fontWeight: "700", paddingHorizontal: spacing.lg },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   emptyText: { color: colors.muted, fontSize: 15, textAlign: "center", fontWeight: "600" },

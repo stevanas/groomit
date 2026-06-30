@@ -205,13 +205,27 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
         query = {"groomer": "pet groomer", "shop": "pet store",
                  "both": "pet store and grooming"}.get(category, "pet store and pet groomer")
         results = await _google_text_search(query, lat, lng, radius, lang)
-        if category in ("shop", "groomer"):
-            results = [r for r in results if r["category"] == category]
+        # groomer/shop also keep "both"-style places; google classifies as one type only
+        if category == "groomer":
+            results = [r for r in results if r["category"] in ("groomer", "both")]
+        elif category == "shop":
+            results = [r for r in results if r["category"] in ("shop", "both")]
         return {"results": results, "source": "google"}
-    # Seed fallback
+    # Seed fallback — selecting groomer/shop also includes "both" stores
+    def _matches(scat, q):
+        if q == "all":
+            return True
+        if q == "both":
+            return scat == "both"
+        if q == "groomer":
+            return scat in ("groomer", "both")
+        if q == "shop":
+            return scat in ("shop", "both")
+        return True
+
     results = []
     for s in SEED_SHOPS:
-        if category != "all" and s["category"] != category:
+        if not _matches(s["category"], category):
             continue
         if 0 <= day <= 6 and s["schedule"][day]["closed"]:
             continue

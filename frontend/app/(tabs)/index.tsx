@@ -56,10 +56,10 @@ export default function FindScreen() {
   const [when, setWhen] = useState<WhenValue>({ type: "any" });
 
   const typeOptions: Option[] = [
-    { value: "all", label: t("type.all") },
     { value: "groomer", label: t("type.groomer") },
     { value: "shop", label: t("type.shop") },
     { value: "both", label: t("type.both") },
+    { value: "all", label: t("type.all") },
   ];
 
   const search = () => {
