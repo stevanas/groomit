@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, radius, shadow, fonts } from "@/src/theme";
 import { useI18n } from "@/src/i18n";
+import WhenPicker, { WhenValue, whenToDay } from "@/src/components/WhenPicker";
 
 type Option = { value: string; label: string };
 
@@ -52,7 +53,7 @@ export default function FindScreen() {
 
   const [type, setType] = useState("all");
   const [location, setLocation] = useState("");
-  const [day, setDay] = useState("any");
+  const [when, setWhen] = useState<WhenValue>({ type: "any" });
 
   const typeOptions: Option[] = [
     { value: "all", label: t("type.all") },
@@ -60,22 +61,11 @@ export default function FindScreen() {
     { value: "shop", label: t("type.shop") },
     { value: "both", label: t("type.both") },
   ];
-  const dayOptions: Option[] = [
-    { value: "any", label: t("day.any") },
-    { value: "today", label: t("day.today") },
-    ...[0, 1, 2, 3, 4, 5, 6].map((d) => ({ value: String(d), label: t(`day.${d}`) })),
-  ];
-
-  const dayToNumber = () => {
-    if (day === "any") return -1;
-    if (day === "today") return (new Date().getDay() + 6) % 7; // JS Sun=0 -> Mon=0 index
-    return Number(day);
-  };
 
   const search = () => {
     router.push({
       pathname: "/(tabs)/browse",
-      params: { category: type, location: location.trim(), day: String(dayToNumber()) },
+      params: { category: type, location: location.trim(), day: String(whenToDay(when)) },
     });
   };
 
@@ -111,7 +101,7 @@ export default function FindScreen() {
           </View>
 
           <Text style={styles.label}>{t("find.when")}</Text>
-          <PickerField icon="calendar" value={day} options={dayOptions} onSelect={setDay} testID="picker-day" />
+          <WhenPicker value={when} onChange={setWhen} testID="picker-when" />
 
           <Pressable style={styles.searchBtn} onPress={search} testID="find-search-button">
             <Ionicons name="search" size={20} color={colors.onBrand} />

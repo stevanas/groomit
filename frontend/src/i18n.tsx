@@ -34,6 +34,7 @@ const el: Dict = {
   "cat.both": "Και τα δύο",
 
   "day.today": "Σήμερα",
+  "day.tomorrow": "Αύριο",
   "day.any": "Οποιαδήποτε μέρα",
   "day.0": "Δευτέρα",
   "day.1": "Τρίτη",
@@ -42,6 +43,11 @@ const el: Dict = {
   "day.4": "Παρασκευή",
   "day.5": "Σάββατο",
   "day.6": "Κυριακή",
+
+  "find.pickDate": "Επίλεξε ημερομηνία",
+  "common.done": "Έτοιμο",
+  "wshort.0": "Δε", "wshort.1": "Τρ", "wshort.2": "Τε", "wshort.3": "Πε", "wshort.4": "Πα", "wshort.5": "Σα", "wshort.6": "Κυ",
+  "month.0": "Ιανουάριος", "month.1": "Φεβρουάριος", "month.2": "Μάρτιος", "month.3": "Απρίλιος", "month.4": "Μάιος", "month.5": "Ιούνιος", "month.6": "Ιούλιος", "month.7": "Αύγουστος", "month.8": "Σεπτέμβριος", "month.9": "Οκτώβριος", "month.10": "Νοέμβριος", "month.11": "Δεκέμβριος",
 
   "browse.searchPlaceholder": "Αναζήτηση με όνομα…",
   "browse.results": "{count} αποτελέσματα",
@@ -114,6 +120,7 @@ const en: Dict = {
   "cat.both": "Both",
 
   "day.today": "Today",
+  "day.tomorrow": "Tomorrow",
   "day.any": "Any day",
   "day.0": "Monday",
   "day.1": "Tuesday",
@@ -122,6 +129,11 @@ const en: Dict = {
   "day.4": "Friday",
   "day.5": "Saturday",
   "day.6": "Sunday",
+
+  "find.pickDate": "Pick a date",
+  "common.done": "Done",
+  "wshort.0": "Mo", "wshort.1": "Tu", "wshort.2": "We", "wshort.3": "Th", "wshort.4": "Fr", "wshort.5": "Sa", "wshort.6": "Su",
+  "month.0": "January", "month.1": "February", "month.2": "March", "month.3": "April", "month.4": "May", "month.5": "June", "month.6": "July", "month.7": "August", "month.8": "September", "month.9": "October", "month.10": "November", "month.11": "December",
 
   "browse.searchPlaceholder": "Search by name…",
   "browse.results": "{count} results",

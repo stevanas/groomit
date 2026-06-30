@@ -68,6 +68,9 @@ export default function ShopDetail() {
 
   const heroUri = photoUrl(shop) || (shop.photos?.[0] ? photoUrl({ photo_name: shop.photos[0] }) : null);
   const googleReviews = shop.google_reviews || [];
+  const cat = getCat(shop.category);
+  const catIconName = shop.category === "groomer" ? "cut" : shop.category === "both" ? "ribbon" : "storefront";
+  const catLabelKey = shop.category === "groomer" ? "type.groomer" : shop.category === "both" ? "type.both" : "type.shop";
   const todayIdx = (new Date().getDay() + 6) % 7;
 
   const scheduleRows: { label: string; value: string; today: boolean }[] = [];
@@ -96,12 +99,11 @@ export default function ShopDetail() {
 
         <View style={styles.sheet}>
           <View style={styles.titleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{shop.name}</Text>
-              <Text style={styles.addr}>{shop.address}</Text>
-            </View>
-            <View style={[styles.catBadge, { backgroundColor: getCat(shop.category).main }]}>
-              <Ionicons name={shop.category === "groomer" ? "cut" : shop.category === "both" ? "ribbon" : "storefront"} size={16} color="#fff" />
+            <Text style={styles.name}>{shop.name}</Text>
+            <Text style={styles.addr}>{shop.address}</Text>
+            <View style={[styles.catPill, { backgroundColor: cat.soft }]}>
+              <Ionicons name={catIconName as any} size={15} color={cat.onSoft} />
+              <Text style={[styles.catPillText, { color: cat.onSoft }]}>{t(catLabelKey)}</Text>
             </View>
           </View>
 
@@ -219,9 +221,11 @@ const styles = StyleSheet.create({
   floatNav: { position: "absolute", left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.lg },
   iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center", ...shadow.float },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, marginTop: -24, padding: spacing.lg, gap: spacing.sm },
-  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  titleRow: { alignItems: "flex-start", gap: spacing.xs },
   name: { fontSize: 24, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display },
-  addr: { fontSize: 14, color: colors.muted, marginTop: 4 },
+  addr: { fontSize: 14, color: colors.muted, marginTop: 2 },
+  catPill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, marginTop: spacing.xs },
+  catPillText: { fontSize: 13, fontWeight: "800" },
   catBadge: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, flexWrap: "wrap", marginTop: spacing.xs },
   ratingNum: { fontSize: 16, fontWeight: "900", color: colors.onSurface, marginLeft: 4 },

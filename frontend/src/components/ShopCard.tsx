@@ -32,7 +32,7 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
         <View style={styles.metaRow}>
           <View style={[styles.tag, { backgroundColor: cat.soft }]}>
             <Ionicons name={catIcon(shop.category)} size={12} color={cat.onSoft} />
-            <Text style={[styles.tagText, { color: cat.onSoft }]} numberOfLines={1}>{t(catLabelKey(shop.category))}</Text>
+            <Text style={[styles.tagText, { color: cat.onSoft }]}>{t(catLabelKey(shop.category))}</Text>
           </View>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color={colors.warning} />
@@ -47,13 +47,13 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
 
 const styles = StyleSheet.create({
   card: { flexDirection: "row", backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, overflow: "hidden", ...shadow.card },
-  img: { width: 104, height: 104, backgroundColor: colors.surfaceTertiary },
+  img: { width: 96, height: 104, backgroundColor: colors.surfaceTertiary },
   body: { flex: 1, padding: spacing.md, justifyContent: "center" },
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   name: { fontSize: 16, fontWeight: "800", color: colors.onSurface, flex: 1 },
   addr: { fontSize: 13, color: colors.muted, marginTop: 2 },
-  metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.sm, gap: spacing.sm },
-  tag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, flexShrink: 1 },
+  metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.sm, gap: spacing.xs },
+  tag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, flexShrink: 0 },
   tagText: { fontSize: 11, fontWeight: "800" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 0 },
   rating: { fontSize: 14, fontWeight: "800", color: colors.onSurface },
