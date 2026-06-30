@@ -1,11 +1,12 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { colors, spacing, radius } from "@/src/theme";
+import { useI18n } from "@/src/i18n";
 
-const CATS = [
-  { key: "all", label: "All" },
-  { key: "groomer", label: "Groomers" },
-  { key: "shop", label: "Pet Shops" },
+const KEYS = [
+  { key: "all", label: "cat.all" },
+  { key: "groomer", label: "cat.groomer" },
+  { key: "shop", label: "cat.shop" },
 ] as const;
 
 export default function CategoryChips({
@@ -15,14 +16,11 @@ export default function CategoryChips({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <View style={styles.rowWrap}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
-        {CATS.map((c) => {
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
+        {KEYS.map((c) => {
           const active = value === c.key;
           return (
             <Pressable
@@ -31,7 +29,7 @@ export default function CategoryChips({
               style={[styles.chip, active && styles.chipActive]}
               testID={`chip-${c.key}`}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.label}</Text>
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{t(c.label)}</Text>
             </Pressable>
           );
         })}

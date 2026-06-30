@@ -3,8 +3,10 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform } from "react-native";
 import { colors } from "@/src/theme";
+import { useI18n } from "@/src/i18n";
 
 export default function TabsLayout() {
+  const { t } = useI18n();
   return (
     <Tabs
       screenOptions={{
@@ -23,31 +25,19 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{
-          title: "Explore",
-          tabBarIcon: ({ color, size }) => <Ionicons name="map" size={size} color={color} />,
-        }}
+        options={{ title: t("tab.find"), tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} /> }}
       />
       <Tabs.Screen
-        name="list"
-        options={{
-          title: "List",
-          tabBarIcon: ({ color, size }) => <Ionicons name="list" size={size} color={color} />,
-        }}
+        name="browse"
+        options={{ title: t("tab.browse"), tabBarIcon: ({ color, size }) => <Ionicons name="storefront" size={size} color={color} /> }}
       />
       <Tabs.Screen
         name="favorites"
-        options={{
-          title: "Saved",
-          tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size} color={color} />,
-        }}
+        options={{ title: t("tab.saved"), tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size} color={color} /> }}
       />
       <Tabs.Screen
         name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
-        }}
+        options={{ title: t("tab.profile"), tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} /> }}
       />
     </Tabs>
   );

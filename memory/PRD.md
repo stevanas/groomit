@@ -1,4 +1,16 @@
-# PawFind — Product Requirements Document
+# GR-oom It (formerly PawFind) — Product Requirements Document
+
+## Update 2026-06-30 (rework)
+- Renamed app to **GR-oom It** (Greek + grooming). Display font: Comfortaa (Greek-capable).
+- **Greek is the default language**, English selectable in Profile (i18n in `src/i18n.tsx`, persisted on device).
+- New palette: warm terracotta `#E2683C` + teal accent + cream (replaced pharmacy-green).
+- **Login flow bypassed** (preserved in `src/auth.tsx` + `app/login.tsx`). Favorites are device-local; reviews not user-authored anymore.
+- Navigation: **Find** (form: type dropdown / location / day) → **Browse** (combined search+list, optional map toggle on native) → **Saved** → **Profile**. Removed separate Explore/List split.
+- Removed in-app review writing. Shop detail now shows **Google reviews + phone (tap to call) + opening hours schedule (today highlighted) + website**.
+- Backend: Greek/Athens seed data with schedule+phone+sample reviews; added `/api/places/geocode`; `nearby` supports `day` + `lang`; detail returns structured `schedule` (seed) or `schedule_text` (Google) and `lang`-localized Google data.
+
+---
+# PawFind — Original Product Requirements Document
 
 ## Original Problem Statement
 Build a mobile app for pet owners looking for pet shops and pet groomers, either nearby or at a certain location, showing reviews.

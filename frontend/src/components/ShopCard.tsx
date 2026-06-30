@@ -4,8 +4,10 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, shadow } from "@/src/theme";
 import { photoUrl } from "@/src/api";
+import { useI18n } from "@/src/i18n";
 
 export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => void }) {
+  const { t } = useI18n();
   const uri = photoUrl(shop);
   return (
     <Pressable style={styles.card} onPress={onPress} testID={`shop-card-${shop.id}`}>
@@ -16,7 +18,7 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
           {shop.open_now != null && (
             <View style={[styles.badge, { backgroundColor: shop.open_now ? colors.brandTertiary : colors.surfaceTertiary }]}>
               <Text style={[styles.badgeText, { color: shop.open_now ? colors.onBrandTertiary : colors.muted }]}>
-                {shop.open_now ? "Open" : "Closed"}
+                {shop.open_now ? t("common.open") : t("common.closed")}
               </Text>
             </View>
           )}
@@ -25,7 +27,7 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
         <View style={styles.metaRow}>
           <View style={styles.tag}>
             <Ionicons name={shop.category === "groomer" ? "cut" : "storefront"} size={12} color={colors.onBrandSecondary} />
-            <Text style={styles.tagText}>{shop.category === "groomer" ? "Groomer" : "Pet Shop"}</Text>
+            <Text style={styles.tagText}>{shop.category === "groomer" ? t("common.groomer") : t("common.shop")}</Text>
           </View>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color={colors.warning} />

@@ -1,142 +1,161 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, ScrollView, FlatList, Platform } from "react-native";
-import { Image } from "expo-image";
+import {
+  View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Platform, KeyboardAvoidingView,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MapShops from "@/src/components/MapShops";
-import CategoryChips from "@/src/components/CategoryChips";
-import ShopCard from "@/src/components/ShopCard";
-import { useShops } from "@/src/useShops";
-import { photoUrl } from "@/src/api";
-import { colors, spacing, radius, shadow } from "@/src/theme";
+import { colors, spacing, radius, shadow, fonts } from "@/src/theme";
+import { useI18n } from "@/src/i18n";
 
-const IS_WEB = Platform.OS === "web";
+type Option = { value: string; label: string };
 
-export default function ExploreScreen() {
+function PickerField({
+  icon, value, options, onSelect, testID,
+}: { icon: any; value: string; options: Option[]; onSelect: (v: string) => void; testID: string }) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.value === value);
+  return (
+    <>
+      <Pressable style={styles.field} onPress={() => setOpen(true)} testID={testID}>
+        <Ionicons name={icon} size={18} color={colors.brand} />
+        <Text style={styles.fieldValue} numberOfLines={1}>{current?.label}</Text>
+        <Ionicons name="chevron-down" size={18} color={colors.muted} />
+      </Pressable>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
+          <View style={styles.sheet}>
+            <ScrollView>
+              {options.map((o) => (
+                <Pressable
+                  key={o.value}
+                  style={styles.optionRow}
+                  onPress={() => { onSelect(o.value); setOpen(false); }}
+                  testID={`option-${o.value}`}
+                >
+                  <Text style={[styles.optionText, o.value === value && styles.optionTextActive]}>{o.label}</Text>
+                  {o.value === value && <Ionicons name="checkmark" size={20} color={colors.brand} />}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+export default function FindScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [category, setCategory] = useState("all");
-  const { shops, region, loading, error, reload } = useShops(category);
+  const { t } = useI18n();
 
-  const go = (s: any) => router.push(`/shop/${s.id}`);
+  const [type, setType] = useState("all");
+  const [location, setLocation] = useState("");
+  const [day, setDay] = useState("any");
 
-  // ----- WEB: clean in-flow layout (no real map available on web) -----
-  if (IS_WEB) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.surface, paddingTop: insets.top + spacing.sm }]} testID="explore-screen">
-        <View style={styles.webHeader}>
-          <View style={styles.searchBar}>
-            <Ionicons name="paw" size={20} color={colors.brand} />
-            <Text style={styles.searchText}>Find pet shops & groomers</Text>
-          </View>
-          <CategoryChips value={category} onChange={setCategory} />
-        </View>
+  const typeOptions: Option[] = [
+    { value: "all", label: t("type.all") },
+    { value: "groomer", label: t("type.groomer") },
+    { value: "shop", label: t("type.shop") },
+  ];
+  const dayOptions: Option[] = [
+    { value: "any", label: t("day.any") },
+    { value: "today", label: t("day.today") },
+    ...[0, 1, 2, 3, 4, 5, 6].map((d) => ({ value: String(d), label: t(`day.${d}`) })),
+  ];
 
-        {loading ? (
-          <View style={styles.webCenter}><ActivityIndicator size="large" color={colors.brand} /></View>
-        ) : error ? (
-          <View style={styles.webCenter}>
-            <Ionicons name="cloud-offline" size={48} color={colors.muted} />
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable style={styles.retryBtn} onPress={reload} testID="explore-retry">
-              <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
-          </View>
-        ) : shops.length === 0 ? (
-          <View style={styles.webCenter}>
-            <Ionicons name="sad-outline" size={48} color={colors.muted} />
-            <Text style={styles.errorText}>No shops found nearby. Try another filter!</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={shops}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <ShopCard shop={item} onPress={() => go(item)} />}
-            contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxxl }}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-      </View>
-    );
-  }
+  const dayToNumber = () => {
+    if (day === "any") return -1;
+    if (day === "today") return (new Date().getDay() + 6) % 7; // JS Sun=0 -> Mon=0 index
+    return Number(day);
+  };
 
-  // ----- NATIVE: full-screen map with floating header + Top Picks -----
+  const search = () => {
+    router.push({
+      pathname: "/(tabs)/browse",
+      params: { category: type, location: location.trim(), day: String(dayToNumber()) },
+    });
+  };
+
   return (
-    <View style={styles.container} testID="explore-screen">
-      <View style={StyleSheet.absoluteFill}>
-        <MapShops shops={shops} region={region} onSelect={go} />
-      </View>
-
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-        <View style={styles.searchBar}>
-          <Ionicons name="paw" size={20} color={colors.brand} />
-          <Text style={styles.searchText}>Find pet shops & groomers</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={[styles.container, { paddingTop: insets.top }]}
+    >
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" testID="find-screen">
+        <View style={styles.brandRow}>
+          <View style={styles.logo}><Ionicons name="paw" size={22} color={colors.onBrand} /></View>
+          <Text style={styles.brand}>{t("appName")}</Text>
         </View>
-        <CategoryChips value={category} onChange={setCategory} />
-      </View>
 
-      {loading && (
-        <View style={styles.loadingPill} testID="explore-loading">
-          <ActivityIndicator color={colors.brand} />
-          <Text style={styles.loadingText}>Sniffing out spots…</Text>
-        </View>
-      )}
+        <Text style={styles.heading}>{t("find.heading")}</Text>
+        <Text style={styles.sub}>{t("find.sub")}</Text>
 
-      {error && !loading && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.retryBtn} onPress={reload} testID="explore-retry">
-            <Text style={styles.retryText}>Retry</Text>
+        <View style={styles.card}>
+          <Text style={styles.label}>{t("find.need")}</Text>
+          <PickerField icon="paw" value={type} options={typeOptions} onSelect={setType} testID="picker-type" />
+
+          <Text style={styles.label}>{t("find.in")}</Text>
+          <View style={styles.field}>
+            <Ionicons name="location" size={18} color={colors.brand} />
+            <TextInput
+              style={styles.input}
+              placeholder={t("find.locationPlaceholder")}
+              placeholderTextColor={colors.muted}
+              value={location}
+              onChangeText={setLocation}
+              testID="location-input"
+            />
+          </View>
+
+          <Text style={styles.label}>{t("find.when")}</Text>
+          <PickerField icon="calendar" value={day} options={dayOptions} onSelect={setDay} testID="picker-day" />
+
+          <Pressable style={styles.searchBtn} onPress={search} testID="find-search-button">
+            <Ionicons name="search" size={20} color={colors.onBrand} />
+            <Text style={styles.searchText}>{t("find.search")}</Text>
           </Pressable>
         </View>
-      )}
 
-      {!loading && shops.length > 0 && (
-        <View style={[styles.carouselWrap, { bottom: spacing.md }]} pointerEvents="box-none">
-          <Text style={styles.carouselTitle}>Top Picks Nearby</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carousel}>
-            {shops.map((s) => (
-              <Pressable key={s.id} style={styles.pick} onPress={() => go(s)} testID={`top-pick-${s.id}`}>
-                <Image source={{ uri: photoUrl(s) || undefined }} style={styles.pickImg} contentFit="cover" />
-                <View style={styles.pickBody}>
-                  <Text style={styles.pickName} numberOfLines={1}>{s.name}</Text>
-                  <View style={styles.pickMeta}>
-                    <Ionicons name="star" size={12} color={colors.warning} />
-                    <Text style={styles.pickRating}>{s.rating ?? "–"}</Text>
-                    <Text style={styles.pickCat}>· {s.category === "groomer" ? "Groomer" : "Shop"}</Text>
-                  </View>
-                </View>
-              </Pressable>
-            ))}
-          </ScrollView>
+        <Text style={styles.quick}>{t("find.quick")}</Text>
+        <View style={styles.quickRow}>
+          <Pressable style={styles.quickCard} onPress={() => router.push({ pathname: "/(tabs)/browse", params: { category: "groomer" } })} testID="quick-groomer">
+            <Ionicons name="cut" size={26} color={colors.brand} />
+            <Text style={styles.quickText}>{t("cat.groomer")}</Text>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => router.push({ pathname: "/(tabs)/browse", params: { category: "shop" } })} testID="quick-shop">
+            <Ionicons name="storefront" size={26} color={colors.accent} />
+            <Text style={styles.quickText}>{t("cat.shop")}</Text>
+          </Pressable>
         </View>
-      )}
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surfaceTertiary },
-  webHeader: { gap: spacing.sm, paddingBottom: spacing.xs },
-  webCenter: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
-  header: { position: "absolute", top: 0, left: 0, right: 0, gap: spacing.sm },
-  searchBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.lg, backgroundColor: colors.surfaceSecondary, borderRadius: radius.pill, paddingHorizontal: spacing.lg, height: 52, ...shadow.float },
-  searchText: { color: colors.muted, fontSize: 15, fontWeight: "600" },
-  loadingPill: { position: "absolute", alignSelf: "center", top: "45%", flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.pill, ...shadow.float },
-  loadingText: { color: colors.onSurface, fontWeight: "700" },
-  errorBox: { position: "absolute", alignSelf: "center", top: "45%", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, padding: spacing.lg, borderRadius: radius.md, ...shadow.float },
-  errorText: { color: colors.onSurface, fontWeight: "700", textAlign: "center" },
-  retryBtn: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: radius.pill },
-  retryText: { color: colors.onBrand, fontWeight: "800" },
-  carouselWrap: { position: "absolute", left: 0, right: 0, gap: spacing.sm },
-  carouselTitle: { fontSize: 16, fontWeight: "900", color: colors.onSurface, marginHorizontal: spacing.lg, textShadowColor: "rgba(255,255,255,0.8)", textShadowRadius: 6 },
-  carousel: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
-  pick: { width: 220, flexDirection: "row", backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, overflow: "hidden", ...shadow.float },
-  pickImg: { width: 64, height: 64, backgroundColor: colors.surfaceTertiary },
-  pickBody: { flex: 1, padding: spacing.sm, justifyContent: "center" },
-  pickName: { fontSize: 14, fontWeight: "800", color: colors.onSurface },
-  pickMeta: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4 },
-  pickRating: { fontSize: 12, fontWeight: "700", color: colors.onSurface },
-  pickCat: { fontSize: 12, color: colors.muted },
+  container: { flex: 1, backgroundColor: colors.surface },
+  scroll: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.sm },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
+  logo: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" },
+  brand: { fontSize: 26, color: colors.onSurface, fontFamily: fonts.display, fontWeight: "700" },
+  heading: { fontSize: 26, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginTop: spacing.md },
+  sub: { fontSize: 15, color: colors.muted, marginBottom: spacing.md, lineHeight: 21 },
+  card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, ...shadow.card },
+  label: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary, marginTop: spacing.xs },
+  field: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: spacing.md, height: 52 },
+  fieldValue: { flex: 1, fontSize: 16, fontWeight: "700", color: colors.onSurface },
+  input: { flex: 1, fontSize: 16, color: colors.onSurface },
+  searchBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.brand, height: 56, borderRadius: radius.pill, marginTop: spacing.md },
+  searchText: { color: colors.onBrand, fontSize: 17, fontWeight: "800" },
+  quick: { fontSize: 15, fontWeight: "800", color: colors.onSurface, marginTop: spacing.xl },
+  quickRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
+  quickCard: { flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, padding: spacing.lg, alignItems: "center", gap: spacing.sm, ...shadow.card },
+  quickText: { fontSize: 14, fontWeight: "800", color: colors.onSurface },
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: "60%", paddingVertical: spacing.sm },
+  optionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
+  optionText: { fontSize: 16, color: colors.onSurface },
+  optionTextActive: { fontWeight: "800", color: colors.brand },
 });

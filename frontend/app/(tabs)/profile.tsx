@@ -1,51 +1,74 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, spacing, radius, shadow } from "@/src/theme";
+import { useI18n, Lang } from "@/src/i18n";
+import { colors, spacing, radius, shadow, fonts } from "@/src/theme";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const { t, lang, setLang } = useI18n();
+
+  const langs: { code: Lang; label: string }[] = [
+    { code: "el", label: "Ελληνικά" },
+    { code: "en", label: "English" },
+  ];
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.md }]} testID="profile-screen">
-      <Text style={styles.title}>Profile</Text>
+      <Text style={styles.title}>{t("profile.title")}</Text>
 
       <View style={styles.card}>
-        <View style={styles.logo}>
-          <Ionicons name="paw" size={32} color={colors.onBrand} />
-        </View>
-        <Text style={styles.name}>Welcome to PawFind</Text>
-        <Text style={styles.email}>Browsing as guest</Text>
+        <View style={styles.logo}><Ionicons name="paw" size={32} color={colors.onBrand} /></View>
+        <Text style={styles.name}>{t("profile.welcome")}</Text>
+        <Text style={styles.email}>{t("profile.guest")}</Text>
+      </View>
+
+      <Text style={styles.sectionLabel}>{t("profile.language")}</Text>
+      <View style={styles.langRow}>
+        {langs.map((l) => {
+          const active = lang === l.code;
+          return (
+            <Pressable
+              key={l.code}
+              style={[styles.langBtn, active && styles.langBtnActive]}
+              onPress={() => setLang(l.code)}
+              testID={`lang-${l.code}`}
+            >
+              <Text style={[styles.langText, active && styles.langTextActive]}>{l.label}</Text>
+              {active && <Ionicons name="checkmark-circle" size={18} color={colors.onBrand} />}
+            </Pressable>
+          );
+        })}
       </View>
 
       <View style={styles.menu}>
         <View style={styles.menuItem}>
           <Ionicons name="heart" size={20} color={colors.brand} />
-          <Text style={styles.menuText}>Your saved spots are kept on this device</Text>
-        </View>
-        <View style={styles.sep} />
-        <View style={styles.menuItem}>
-          <Ionicons name="lock-closed-outline" size={20} color={colors.muted} />
-          <Text style={styles.menuText}>Sign in (coming soon) to sync across devices</Text>
+          <Text style={styles.menuText}>{t("profile.savedNote")}</Text>
         </View>
       </View>
 
-      <Text style={styles.footer}>PawFind · find the best pet care nearby</Text>
+      <Text style={styles.footer}>{t("profile.footer")}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface, padding: spacing.lg },
-  title: { fontSize: 28, fontWeight: "900", color: colors.onSurface, marginBottom: spacing.lg },
+  title: { fontSize: 28, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginBottom: spacing.lg },
   card: { alignItems: "center", backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.xs, ...shadow.card },
   logo: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center", marginBottom: spacing.sm },
-  name: { fontSize: 20, fontWeight: "900", color: colors.onSurface },
+  name: { fontSize: 20, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, textAlign: "center" },
   email: { fontSize: 14, color: colors.muted },
-  menu: { marginTop: spacing.lg, backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, ...shadow.card },
+  sectionLabel: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary, marginTop: spacing.xl, marginBottom: spacing.sm, textTransform: "uppercase", letterSpacing: 0.5 },
+  langRow: { flexDirection: "row", gap: spacing.md },
+  langBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, height: 52, borderRadius: radius.md, backgroundColor: colors.surfaceSecondary, borderWidth: 1.5, borderColor: colors.border },
+  langBtnActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  langText: { fontSize: 15, fontWeight: "800", color: colors.onSurfaceTertiary },
+  langTextActive: { color: colors.onBrand },
+  menu: { marginTop: spacing.xl, backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, ...shadow.card },
   menuItem: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg },
   menuText: { fontSize: 14, color: colors.onSurfaceTertiary, fontWeight: "600", flex: 1 },
-  sep: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.lg },
   footer: { marginTop: "auto", marginBottom: spacing.xl, textAlign: "center", color: colors.muted, fontSize: 13 },
 });
