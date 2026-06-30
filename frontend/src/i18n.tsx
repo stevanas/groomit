@@ -53,6 +53,7 @@ const el: Dict = {
   "browse.results": "{count} αποτελέσματα",
   "browse.list": "Λίστα",
   "browse.map": "Χάρτης",
+  "filter.openNow": "Ανοιχτά τώρα",
 
   "common.open": "Ανοιχτό",
   "common.closed": "Κλειστό",
@@ -139,6 +140,7 @@ const en: Dict = {
   "browse.results": "{count} results",
   "browse.list": "List",
   "browse.map": "Map",
+  "filter.openNow": "Open now",
 
   "common.open": "Open",
   "common.closed": "Closed",

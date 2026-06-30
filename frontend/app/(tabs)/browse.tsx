@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable, TextInput, RefreshControl, Platform,
 } from "react-native";
@@ -22,7 +22,13 @@ export default function BrowseScreen() {
 
   const [category, setCategory] = useState(params.category || "all");
   const [query, setQuery] = useState("");
+  const [openNowOnly, setOpenNowOnly] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+
+  // Keep filters in sync when arriving from the Find form with new params.
+  useEffect(() => {
+    if (params.category) setCategory(params.category);
+  }, [params.category]);
 
   const day = params.day ? Number(params.day) : -1;
   const { shops, region, loading, error, reload } = useShops(category, {
@@ -33,9 +39,11 @@ export default function BrowseScreen() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return shops;
-    return shops.filter((s) => s.name.toLowerCase().includes(q) || (s.address || "").toLowerCase().includes(q));
-  }, [shops, query]);
+    let res = shops;
+    if (q) res = res.filter((s) => s.name.toLowerCase().includes(q) || (s.address || "").toLowerCase().includes(q));
+    if (openNowOnly) res = res.filter((s) => s.open_now === true);
+    return res;
+  }, [shops, query, openNowOnly]);
 
   const go = (s: any) => router.push(`/shop/${s.id}`);
 
@@ -70,6 +78,17 @@ export default function BrowseScreen() {
       </View>
 
       <CategoryChips value={category} onChange={setCategory} />
+
+      <View style={styles.filterRow}>
+        <Pressable
+          style={[styles.filterChip, openNowOnly && styles.filterChipActive]}
+          onPress={() => setOpenNowOnly((v) => !v)}
+          testID="filter-open-now"
+        >
+          <Ionicons name="time" size={14} color={openNowOnly ? colors.onBrand : colors.success} />
+          <Text style={[styles.filterText, openNowOnly && styles.filterTextActive]}>{t("filter.openNow")}</Text>
+        </Pressable>
+      </View>
 
       {!loading && !error && (
         <Text style={styles.count}>{t("browse.results", { count: filtered.length })}</Text>
@@ -115,6 +134,11 @@ const styles = StyleSheet.create({
   searchBar: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, borderRadius: radius.pill, paddingHorizontal: spacing.lg, height: 50, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, fontSize: 15, color: colors.onSurface },
   toggle: { width: 50, height: 50, borderRadius: radius.md, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
+  filterRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.xs },
+  filterChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 34, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
+  filterChipActive: { backgroundColor: colors.success, borderColor: colors.success },
+  filterText: { fontSize: 13, fontWeight: "800", color: colors.success },
+  filterTextActive: { color: colors.onBrand },
   count: { fontSize: 13, color: colors.muted, fontWeight: "700", paddingHorizontal: spacing.lg },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   emptyText: { color: colors.muted, fontSize: 15, textAlign: "center", fontWeight: "600" },
