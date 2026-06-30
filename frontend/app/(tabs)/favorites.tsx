@@ -4,7 +4,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ShopCard from "@/src/components/ShopCard";
-import { apiGet } from "@/src/api";
+import { getFavorites } from "@/src/favorites";
 import { colors, spacing } from "@/src/theme";
 
 export default function FavoritesScreen() {
@@ -16,8 +16,8 @@ export default function FavoritesScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiGet("/favorites", true);
-      setFavs((data.favorites || []).map((f: any) => ({ ...f, id: f.place_id })));
+      const data = await getFavorites();
+      setFavs(data.map((f: any) => ({ ...f, id: f.place_id })));
     } catch {
       setFavs([]);
     } finally {

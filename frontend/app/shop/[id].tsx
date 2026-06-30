@@ -9,7 +9,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet, apiPost, photoUrl } from "@/src/api";
-import { useAuth } from "@/src/auth";
+import { isFavorite, toggleFavorite } from "@/src/favorites";
 import { colors, spacing, radius, shadow } from "@/src/theme";
 
 function Stars({ value, size = 14 }: { value: number; size?: number }) {
@@ -26,7 +26,6 @@ export default function ShopDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
 
   const [shop, setShop] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -43,37 +42,26 @@ export default function ShopDetail() {
     try {
       const data = await apiGet(`/places/${id}`);
       setShop(data);
-      if (user) {
-        try {
-          const f = await apiGet("/favorites", true);
-          setFav((f.favorites || []).some((x: any) => x.place_id === id));
-        } catch {}
-      }
+      setFav(await isFavorite(String(id)));
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [id, user]);
+  }, [id]);
 
   useEffect(() => { load(); }, [load]);
 
   const toggleFav = async () => {
     if (!shop) return;
-    setFav((v) => !v);
-    try {
-      await apiPost("/favorites", {
-        place_id: shop.id, name: shop.name, address: shop.address,
-        category: shop.category, rating: shop.rating,
-        image_url: shop.image_url, photo_name: shop.photos?.[0] && !shop.image_url ? shop.photos[0] : null,
-      }, true);
-    } catch { setFav((v) => !v); }
+    const result = await toggleFavorite(shop);
+    setFav(result);
   };
 
   const submitReview = async () => {
     setSubmitting(true);
     try {
-      await apiPost("/reviews", { place_id: shop.id, place_name: shop.name, rating: myRating, comment }, true);
+      await apiPost("/reviews", { place_id: shop.id, place_name: shop.name, rating: myRating, comment });
       setModalOpen(false);
       setComment("");
       setMyRating(5);

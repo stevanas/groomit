@@ -1,22 +1,7 @@
 import { Redirect } from "expo-router";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
-import { useAuth } from "@/src/auth";
-import { colors } from "@/src/theme";
 
+// Login flow is temporarily bypassed — open straight to the main app.
+// Auth code is preserved in src/auth.tsx and app/login.tsx for later use.
 export default function Index() {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <View style={styles.center} testID="auth-loading">
-        <ActivityIndicator size="large" color={colors.brand} />
-      </View>
-    );
-  }
-
-  return user ? <Redirect href="/(tabs)" /> : <Redirect href="/login" />;
+  return <Redirect href="/(tabs)" />;
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
-});

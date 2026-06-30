@@ -269,16 +269,26 @@ async def place_photo(name: str, max_width: int = 800):
 # ----------------------------- Reviews -----------------------------
 @api_router.post("/reviews")
 async def add_review(body: ReviewCreate, authorization: Optional[str] = Header(default=None)):
-    user = await get_current_user(authorization)
+    author = "Guest"
+    picture = ""
+    user_id = "guest"
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            user = await get_current_user(authorization)
+            author = user.get("name") or user.get("email")
+            picture = user.get("picture", "")
+            user_id = user["user_id"]
+        except HTTPException:
+            pass
     doc = {
         "id": str(uuid.uuid4()),
         "place_id": body.place_id,
         "place_name": body.place_name,
         "rating": body.rating,
         "comment": body.comment,
-        "user_id": user["user_id"],
-        "author": user.get("name") or user.get("email"),
-        "picture": user.get("picture", ""),
+        "user_id": user_id,
+        "author": author,
+        "picture": picture,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.reviews.insert_one(dict(doc))
