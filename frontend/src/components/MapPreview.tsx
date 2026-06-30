@@ -10,12 +10,14 @@ export default function MapPreview({
   shops,
   region,
   focusId,
+  delta,
   onPress,
   testID,
 }: {
   shops: any[];
   region?: { latitude: number; longitude: number };
   focusId?: string;
+  delta?: number;
   onPress: () => void;
   testID?: string;
 }) {
@@ -23,7 +25,7 @@ export default function MapPreview({
   return (
     <View style={styles.card}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <MapShops shops={shops} region={region} focusId={focusId} interactive={false} />
+        <MapShops shops={shops} region={region} focusId={focusId} interactive={false} delta={delta} />
       </View>
       <Pressable style={StyleSheet.absoluteFill} onPress={onPress} testID={testID}>
         <View style={styles.badge}>

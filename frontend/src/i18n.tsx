@@ -20,6 +20,7 @@ const el: Dict = {
   "find.in": "στην περιοχή",
   "find.when": "για",
   "find.locationPlaceholder": "Κοντά μου",
+  "find.useMyLocation": "Χρησιμοποίησε την τοποθεσία μου",
   "find.search": "Αναζήτηση",
   "find.quick": "Γρήγορη αναζήτηση",
 
@@ -122,6 +123,7 @@ const en: Dict = {
   "find.in": "in",
   "find.when": "for",
   "find.locationPlaceholder": "Near me",
+  "find.useMyLocation": "Use my location",
   "find.search": "Search",
   "find.quick": "Quick search",
 

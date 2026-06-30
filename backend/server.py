@@ -218,6 +218,37 @@ async def _google_text_search(query, lat, lng, radius, lang):
     return out
 
 
+@api_router.get("/places/autocomplete")
+async def places_autocomplete(input: str, lang: str = "el",
+                              lat: Optional[float] = None, lng: Optional[float] = None):
+    """Google Places Autocomplete (New) -> location suggestions for the search box."""
+    if not (GOOGLE_MAPS_API_KEY and input.strip()):
+        return {"suggestions": []}
+    url = "https://places.googleapis.com/v1/places:autocomplete"
+    body = {"input": input, "languageCode": lang, "includedRegionCodes": ["gr"]}
+    if lat is not None and lng is not None:
+        body["locationBias"] = {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": 50000.0}}
+    headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY}
+    async with httpx.AsyncClient(timeout=10.0) as hc:
+        resp = await hc.post(url, json=body, headers=headers)
+    if resp.status_code != 200:
+        logger.error("Autocomplete error %s: %s", resp.status_code, resp.text[:200])
+        return {"suggestions": []}
+    out = []
+    for s in resp.json().get("suggestions", []):
+        pp = s.get("placePrediction")
+        if not pp:
+            continue
+        sf = pp.get("structuredFormat", {})
+        out.append({
+            "place_id": pp.get("placeId"),
+            "description": pp.get("text", {}).get("text", ""),
+            "main": sf.get("mainText", {}).get("text", ""),
+            "secondary": sf.get("secondaryText", {}).get("text", ""),
+        })
+    return {"suggestions": out}
+
+
 @api_router.get("/places/geocode")
 async def geocode(q: str, lang: str = "el"):
     if GOOGLE_MAPS_API_KEY and q.strip():

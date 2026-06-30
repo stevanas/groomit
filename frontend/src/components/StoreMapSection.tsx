@@ -19,6 +19,7 @@ export default function StoreMapSection({ shop }: { shop: any }) {
       shops={data}
       region={center}
       focusId={String(shop.id)}
+      delta={0.012}
       onPress={() =>
         router.push({
           pathname: "/map",

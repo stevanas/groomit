@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Platform, KeyboardAvoidingView,
+  View, Text, StyleSheet, ScrollView, Pressable, Modal, Platform, KeyboardAvoidingView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { colors, spacing, radius, shadow, fonts } from "@/src/theme";
 import { useI18n } from "@/src/i18n";
 import WhenPicker, { WhenValue, whenToDay } from "@/src/components/WhenPicker";
 import MapPreview from "@/src/components/MapPreview";
+import LocationAutocomplete from "@/src/components/LocationAutocomplete";
 import { useShops } from "@/src/useShops";
 
 type Option = { value: string; label: string };
@@ -92,17 +93,13 @@ export default function FindScreen() {
           <PickerField icon="paw" value={type} options={typeOptions} onSelect={setType} testID="picker-type" />
 
           <Text style={styles.label}>{t("find.in")}</Text>
-          <View style={styles.field}>
-            <Ionicons name="location" size={18} color={colors.brand} />
-            <TextInput
-              style={styles.input}
-              placeholder={t("find.locationPlaceholder")}
-              placeholderTextColor={colors.muted}
-              value={location}
-              onChangeText={setLocation}
-              testID="location-input"
-            />
-          </View>
+          <LocationAutocomplete
+            value={location}
+            onChangeText={setLocation}
+            onSelect={(desc) => router.push({ pathname: "/(tabs)/browse", params: { category: type, location: desc, day: String(whenToDay(when)) } })}
+            onUseMyLocation={() => router.push({ pathname: "/(tabs)/browse", params: { category: type, location: "", day: String(whenToDay(when)) } })}
+            testID="location-input"
+          />
 
           <Text style={styles.label}>{t("find.when")}</Text>
           <WhenPicker value={when} onChange={setWhen} testID="picker-when" />
