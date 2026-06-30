@@ -8,6 +8,7 @@ type PremiumCtx = {
   isPremium: boolean;
   loading: boolean;
   available: boolean; // whether real purchases are possible in this runtime
+  price: string | null; // store-formatted localized price, or null
   setPremium: (v: boolean) => Promise<void>;
   buy: () => Promise<void>;
   restore: () => Promise<boolean>;
@@ -17,6 +18,7 @@ const Context = createContext<PremiumCtx>({
   isPremium: false,
   loading: true,
   available: false,
+  price: null,
   setPremium: async () => {},
   buy: async () => {},
   restore: async () => false,
@@ -25,6 +27,7 @@ const Context = createContext<PremiumCtx>({
 export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [price, setPrice] = useState<string | null>(null);
   const available = iap.isIapAvailable();
 
   const setPremium = useCallback(async (v: boolean) => {
@@ -42,6 +45,10 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
       // Reconcile with the store (covers reinstalls / cross-device on same account).
       const owned = await iap.isRemoveAdsOwned();
       if (mounted && owned) await setPremium(true);
+
+      // Fetch the localized store price for display.
+      const pr = await iap.getRemoveAdsPrice();
+      if (mounted && pr) setPrice(pr);
     })();
 
     const unsub = iap.onPurchaseUpdated((productId) => {
@@ -68,7 +75,7 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   }, [setPremium]);
 
   return (
-    <Context.Provider value={{ isPremium, loading, available, setPremium, buy, restore }}>
+    <Context.Provider value={{ isPremium, loading, available, price, setPremium, buy, restore }}>
       {children}
     </Context.Provider>
   );

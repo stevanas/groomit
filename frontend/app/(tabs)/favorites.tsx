@@ -5,13 +5,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ShopCard from "@/src/components/ShopCard";
 import { getFavorites } from "@/src/favorites";
+import { apiGet } from "@/src/api";
 import { useI18n } from "@/src/i18n";
 import { colors, spacing, fonts } from "@/src/theme";
 
 export default function FavoritesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [favs, setFavs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,13 +20,26 @@ export default function FavoritesScreen() {
     setLoading(true);
     try {
       const data = await getFavorites();
-      setFavs(data.map((f: any) => ({ ...f, id: f.place_id })));
+      const base = data.map((f: any) => ({ ...f, id: f.place_id }));
+      setFavs(base);
+      setLoading(false);
+      // Enrich with live open status + schedule so cards match the list section.
+      const enriched = await Promise.all(
+        base.map(async (f: any) => {
+          try {
+            const d = await apiGet(`/places/${f.place_id}?lang=${lang}`);
+            return { ...f, open_now: d.open_now, schedule: d.schedule };
+          } catch {
+            return f;
+          }
+        }),
+      );
+      setFavs(enriched);
     } catch {
       setFavs([]);
-    } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 

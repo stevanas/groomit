@@ -84,3 +84,16 @@ export function isIapAvailable(): boolean {
     return false;
   }
 }
+
+// Localized, store-formatted price of the remove-ads product (e.g. "€1.99"), or null if unavailable.
+export async function getRemoveAdsPrice(): Promise<string | null> {
+  try {
+    const m = getMod();
+    await initIap();
+    const products = await m.fetchProducts({ skus: [REMOVE_ADS_PRODUCT_ID], type: "in-app" });
+    const p = (products || []).find((x: any) => x.id === REMOVE_ADS_PRODUCT_ID || x.productId === REMOVE_ADS_PRODUCT_ID) || (products || [])[0];
+    return p?.displayPrice || p?.localizedPrice || null;
+  } catch {
+    return null;
+  }
+}

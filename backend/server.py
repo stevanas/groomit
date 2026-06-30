@@ -338,7 +338,7 @@ async def place_details(place_id: str, lang: str = "el"):
     if GOOGLE_MAPS_API_KEY:
         url = f"https://places.googleapis.com/v1/places/{place_id}"
         field_mask = ("id,displayName,formattedAddress,location,types,rating,userRatingCount,"
-                      "internationalPhoneNumber,websiteUri,reviews,photos,regularOpeningHours")
+                      "internationalPhoneNumber,websiteUri,reviews,photos,regularOpeningHours,currentOpeningHours")
         headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY, "X-Goog-FieldMask": field_mask}
         async with httpx.AsyncClient(timeout=15.0) as hc:
             resp = await hc.get(url, headers=headers, params={"languageCode": lang})
@@ -348,13 +348,14 @@ async def place_details(place_id: str, lang: str = "el"):
         name = p.get("displayName", {}).get("text", "")
         loc = p.get("location", {})
         oh = p.get("regularOpeningHours", {})
+        cur = p.get("currentOpeningHours", {})
         return {
             "id": p.get("id"), "name": name, "address": p.get("formattedAddress", ""),
             "latitude": loc.get("latitude"), "longitude": loc.get("longitude"),
             "category": _classify(p.get("types"), name), "rating": p.get("rating"),
             "user_rating_count": p.get("userRatingCount", 0),
             "phone": p.get("internationalPhoneNumber", ""), "website": p.get("websiteUri", ""),
-            "open_now": oh.get("openNow"),
+            "open_now": cur.get("openNow") if cur.get("openNow") is not None else oh.get("openNow"),
             "photos": [ph["name"] for ph in p.get("photos", [])[:6]], "image_url": None,
             "schedule": _periods_to_schedule(oh.get("periods")), "schedule_text": oh.get("weekdayDescriptions", []),
             "google_reviews": [

@@ -7,8 +7,9 @@ import { colors, spacing, radius, shadow } from "@/src/theme";
 
 export default function RemoveAdsCard() {
   const { t } = useI18n();
-  const { isPremium, available, buy, restore } = usePremium();
+  const { isPremium, available, price, buy, restore } = usePremium();
   const [busy, setBusy] = useState<null | "buy" | "restore">(null);
+  const displayPrice = price || "€1.99";
 
   const onBuy = async () => {
     if (!available) {
@@ -64,7 +65,7 @@ export default function RemoveAdsCard() {
         ) : (
           <>
             <Ionicons name="sparkles" size={18} color={colors.onBrand} />
-            <Text style={styles.buyText} numberOfLines={1} adjustsFontSizeToFit>{t("support.buy")}</Text>
+            <Text style={styles.buyText} numberOfLines={1} adjustsFontSizeToFit>{`${t("support.buy")} · ${displayPrice}`}</Text>
           </>
         )}
       </Pressable>

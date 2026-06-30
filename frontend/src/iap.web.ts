@@ -19,3 +19,6 @@ export function onPurchaseUpdated(_cb: (productId: string) => void): () => void 
 export function isIapAvailable(): boolean {
   return false;
 }
+export async function getRemoveAdsPrice(): Promise<string | null> {
+  return null;
+}
