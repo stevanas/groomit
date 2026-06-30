@@ -1,0 +1,137 @@
+{
+  "app_name": "PawFind",
+  "personality": "4 Tactile / Playful LIGHT",
+  "personality_one_liner": "A joyful, approachable, and highly tactile experience that makes finding pet care feel like a walk in the park.",
+  "color": {
+    "surface": "#FDFBF7",
+    "onSurface": "#1C1B1A",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#1C1B1A",
+    "surfaceTertiary": "#F0EFEB",
+    "onSurfaceTertiary": "#3A3937",
+    "surfaceInverse": "#2B3028",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#4CA771",
+    "brandPrimary": "#4CA771",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#BBE5CD",
+    "onBrandSecondary": "#133822",
+    "brandTertiary": "#E2F5EA",
+    "onBrandTertiary": "#133822",
+    "success": "#4A7A59",
+    "onSuccess": "#FFFFFF",
+    "warning": "#D49D42",
+    "onWarning": "#FFFFFF",
+    "error": "#B54D4D",
+    "onError": "#FFFFFF",
+    "info": "#667761",
+    "onInfo": "#FFFFFF",
+    "border": "#E6E4DF",
+    "borderStrong": "#CFCBBE",
+    "divider": "#E6E4DF"
+  },
+  "typography": {
+    "displayFontFamily": "Figtree",
+    "textFontFamily": "Nunito",
+    "scale": { "sm": 12, "base": 14, "lg": 16, "xl": 20, "2xl": 24 }
+  },
+  "spacing": { 
+    "rule": "Generous tactile padding. Floating elements should have safe area clearance. Overlap map with floating cards instead of strict stacking.",
+    "xs": 4, 
+    "sm": 8, 
+    "md": 12, 
+    "lg": 16, 
+    "xl": 24, 
+    "2xl": 32, 
+    "3xl": 48 
+  },
+  "radius_tokens": { 
+    "sm": 8, 
+    "md": 16, 
+    "lg": 24, 
+    "pill": 999 
+  },
+  "shadow_tier": "2",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Bottom tab bar floating over the map",
+      "Floating filter pill rows over the map",
+      "Sticky primary CTA over scrolling content on Shop Detail"
+    ],
+    "dont's": [
+      "Form fields",
+      "Body text regions",
+      "List cards inside standard scroll views"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    { 
+      "name": "HomeMap", 
+      "purpose": "Allow users to discover nearby pet shops and groomers via an interactive map with floating filters.", 
+      "states": { 
+        "loading": "Map skeleton with a bouncing paw/spinner in the center.", 
+        "empty": "Illustration of a dog with binoculars; 'No shops found nearby. Try zooming out!' + 'Reset Map' CTA.", 
+        "error": "Readable message 'Oops, we lost the scent.' + Retry button." 
+      }, 
+      "layout": "Map takes up full screen. Top safe area has a floating search bar + filter pills (Dogs, Cats, Grooming). Floating map markers (custom circular pins with pet icons). Bottom 20% features a horizontal scrolling carousel of 'Top Picks' floating above the map, sitting just above the glass bottom tab bar." 
+    },
+    { 
+      "name": "ShopDetail", 
+      "purpose": "Provide comprehensive details about a shop (photos, services, reviews) to drive bookings and visits.", 
+      "states": { 
+        "loading": "Centered spinner over a blank surfaceSecondary.", 
+        "empty": "N/A - detail screens shouldn't be empty if navigated to.", 
+        "error": "Failed to load shop details + Retry button." 
+      }, 
+      "layout": "Large hero image carousel at top. Content area overlaps hero slightly with large rounded top corners. Profile avatar of shop overlapping the header joint. Title, 'Verified' badge, Distance. Horizontal scroll for 'Services' cards. Masonry grid for 'Before & After' gallery. Reviews list at bottom. CRITICAL: A sticky bottom bar with 'Book Appointment' (brandPrimary) and 'Call' (secondary) floating over the scrolling content." 
+    },
+    { 
+      "name": "ListView", 
+      "purpose": "Alternative to the map for users who prefer scanning structured lists with dense information.", 
+      "states": { 
+        "loading": "List of skeleton cards.", 
+        "empty": "Illustration of an empty food bowl; 'No shops found with these filters.'", 
+        "error": "Error message + Retry." 
+      }, 
+      "layout": "Standard vertical list. Top sticky filter row (glass). Cards are full width (minus padding). Each card features a left-aligned image cover. Title, star rating, distance, open/closed badge on the right side." 
+    }
+  ],
+  "images": {
+    "hero_groomer_1": { 
+      "url": "https://images.unsplash.com/photo-1719464454959-9cf304ef4774?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwyfHxjdXRlJTIwZG9nJTIwYmVpbmclMjBncm9vbWVkfGVufDB8fHx8MTc4Mjc5OTk0OXww&ixlib=rb-4.1.0&q=85", 
+      "alt": "A small white dog being groomed with scissors" 
+    },
+    "hero_groomer_2": { 
+      "url": "https://images.unsplash.com/photo-1611173622933-91942d394b04?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwxfHxjdXRlJTIwZG9nJTIwYmVpbmclMjBncm9vbWVkfGVufDB8fHx8MTc4Mjc5OTk0OXww&ixlib=rb-4.1.0&q=85", 
+      "alt": "Brown pomeranian wrapped in a pink towel" 
+    },
+    "shop_interior": { 
+      "url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDR8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBwZXQlMjBzaG9wJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzgyNzk5OTUwfDA&ixlib=rb-4.1.0&q=85", 
+      "alt": "Modern pet shop shelves with plants and products" 
+    }
+  },
+  "instructions_to_main_agent": [
+    "Design with Tactile / Playful LIGHT personality. Use oversized tap areas, soft rounded shapes (lg to pill), and avoid harsh lines.",
+    "Implement the map screen with full-screen layout. Search, filters, and bottom 'Top Picks' carousel should float over the map.",
+    "ShopDetail screen must feature a sticky bottom CTA bar ('Book' / 'Call') over scrolling content so users don't have to hunt for the action. Use glassmorphism on this bar.",
+    "Whenever text sits over hero images, implement the mandatory vertical linear-gradient scrim (transparent to >=70% surfaceInverse at bottom) for contrast.",
+    "Use Phosphor filled icons everywhere to maintain the chunky, friendly aesthetic.",
+    "In Shop Detail, create a 'Services' horizontal scroll section displaying small cards for services like Bath, Full Groom, etc.",
+    "Avatars for shops/groomers should use real photos (use the provided images) instead of generic icons wherever possible. If missing, use initials."
+  ]
+}
