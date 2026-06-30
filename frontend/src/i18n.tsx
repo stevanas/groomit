@@ -31,7 +31,7 @@ const el: Dict = {
   "cat.all": "Όλα",
   "cat.groomer": "Κομμωτήρια",
   "cat.shop": "Pet Shops",
-  "cat.both": "Και τα δύο",
+  "cat.both": "Και τα 2",
 
   "day.today": "Σήμερα",
   "day.tomorrow": "Αύριο",

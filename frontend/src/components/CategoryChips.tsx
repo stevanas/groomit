@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   chip: {
     height: 36,
     flexShrink: 0,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   chipActive: { backgroundColor: colors.surfaceInverse, borderColor: colors.surfaceInverse },
-  chipText: { fontSize: 14, fontWeight: "700", color: colors.onSurfaceTertiary },
+  chipText: { fontSize: 13, fontWeight: "700", color: colors.onSurfaceTertiary },
   chipTextActive: { color: colors.onSurfaceInverse },
 });

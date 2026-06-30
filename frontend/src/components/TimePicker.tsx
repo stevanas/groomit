@@ -40,12 +40,17 @@ export default function TimePicker({
                 <Text style={[styles.rowText, !value && styles.rowActive]}>{t("filter.any")}</Text>
                 {!value && <Ionicons name="checkmark" size={20} color={colors.brand} />}
               </Pressable>
-              {has24h && (
-                <Pressable style={styles.row} onPress={() => { onChange("24h"); setOpen(false); }} testID="time-24h">
-                  <Text style={[styles.rowText, value === "24h" && styles.rowActive]}>{t("filter.open24")}</Text>
-                  {value === "24h" && <Ionicons name="checkmark" size={20} color={colors.brand} />}
-                </Pressable>
-              )}
+              <Pressable
+                style={styles.row}
+                disabled={!has24h}
+                onPress={() => { onChange("24h"); setOpen(false); }}
+                testID="time-24h"
+              >
+                <Text style={[styles.rowText, !has24h && styles.rowDisabled, value === "24h" && styles.rowActive]}>
+                  {t("filter.open24")}
+                </Text>
+                {value === "24h" && <Ionicons name="checkmark" size={20} color={colors.brand} />}
+              </Pressable>
               {options.map((tm) => (
                 <Pressable key={tm} style={styles.row} onPress={() => { onChange(tm); setOpen(false); }} testID={`time-${tm}`}>
                   <Text style={[styles.rowText, value === tm && styles.rowActive]}>{tm}</Text>
@@ -71,4 +76,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
   rowText: { fontSize: 16, color: colors.onSurface },
   rowActive: { fontWeight: "800", color: colors.brand },
+  rowDisabled: { color: colors.border },
 });
