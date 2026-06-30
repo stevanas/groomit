@@ -82,5 +82,5 @@ const styles = StyleSheet.create({
   menu: { marginTop: spacing.xl, backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, ...shadow.card },
   menuItem: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg },
   menuText: { fontSize: 14, color: colors.onSurfaceTertiary, fontWeight: "600", flex: 1 },
-  footer: { marginTop: "auto", marginBottom: spacing.xl, textAlign: "center", color: colors.muted, fontSize: 13 },
+  footer: { marginTop: "auto", paddingTop: spacing.xl, marginBottom: spacing.xl, textAlign: "center", color: colors.muted, fontSize: 13 },
 });

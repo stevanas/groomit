@@ -28,6 +28,7 @@ const el: Dict = {
   "type.groomer": "Κομμωτήριο",
   "type.shop": "Pet Shop",
   "type.both": "Και τα δύο",
+  "type.bothFull": "Κομμωτήριο & Pet Shop",
 
   "cat.all": "Όλα",
   "cat.groomer": "Κομμωτήρια",
@@ -52,6 +53,7 @@ const el: Dict = {
 
   "browse.searchPlaceholder": "Αναζήτηση με όνομα…",
   "browse.results": "{count} αποτελέσματα",
+  "browse.noMore": "Δεν υπάρχουν άλλα αποτελέσματα",
   "browse.list": "Λίστα",
   "browse.map": "Χάρτης",
   "browse.km": "χλμ",
@@ -109,7 +111,7 @@ const el: Dict = {
   "support.title": "Υποστήριξη",
   "support.removeAdsTitle": "Αφαίρεση διαφημίσεων",
   "support.desc": "Μία εφάπαξ αγορά αφαιρεί όλες τις διαφημίσεις και υποστηρίζει την ανάπτυξη της εφαρμογής.",
-  "support.buy": "Αφαίρεση διαφημίσεων & υποστήριξη",
+  "support.buy": "Αφαίρεση & υποστήριξη",
   "support.restore": "Επαναφορά αγοράς",
   "support.thanks": "Ευχαριστούμε για την υποστήριξη! Οι διαφημίσεις αφαιρέθηκαν.",
   "support.unavailable": "Διαθέσιμο στη δημοσιευμένη εφαρμογή.",
@@ -143,6 +145,7 @@ const en: Dict = {
   "type.groomer": "Groomer",
   "type.shop": "Pet Shop",
   "type.both": "Both",
+  "type.bothFull": "Groomer & Pet Shop",
 
   "cat.all": "All",
   "cat.groomer": "Groomers",
@@ -167,6 +170,7 @@ const en: Dict = {
 
   "browse.searchPlaceholder": "Search by name…",
   "browse.results": "{count} results",
+  "browse.noMore": "No more results",
   "browse.list": "List",
   "browse.map": "Map",
   "browse.km": "km",

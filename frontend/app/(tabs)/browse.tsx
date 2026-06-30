@@ -49,7 +49,7 @@ export default function BrowseScreen() {
   }, [params.category]);
 
   const day = params.day ? Number(params.day) : -1;
-  const { shops, region, loading, loadingMore, error, reload, loadMore } = useShops(category, {
+  const { shops, region, loading, loadingMore, hasMore, error, reload, loadMore } = useShops(category, {
     locationQuery: params.location,
     day,
     lang,
@@ -225,6 +225,9 @@ export default function BrowseScreen() {
           ListFooterComponent={
             <View>
               {loadingMore && <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} />}
+              {!hasMore && !loadingMore && filtered.length > 0 && (
+                <Text style={styles.noMore}>{t("browse.noMore")}</Text>
+              )}
               <AdBanner />
             </View>
           }
@@ -247,8 +250,8 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: colors.success, borderColor: colors.success },
   filterText: { fontSize: 13, fontWeight: "800", color: colors.success, flexShrink: 1 },
   filterTextActive: { color: colors.onBrand },
-  sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, flexShrink: 0 },
-  clearBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, height: 36, flexShrink: 0, marginLeft: "auto" },
+  sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 40, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, flexShrink: 0 },
+  clearBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.md, height: 40, flexShrink: 0, marginLeft: "auto" },
   clearText: { fontSize: 13, fontWeight: "700", color: colors.muted },
   sortText: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
@@ -258,6 +261,7 @@ const styles = StyleSheet.create({
   sortRowText: { fontSize: 16, color: colors.onSurface },
   sortRowActive: { fontWeight: "800", color: colors.brand },
   count: { fontSize: 13, color: colors.muted, fontWeight: "700", paddingHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.xs },
+  noMore: { textAlign: "center", color: colors.muted, fontSize: 13, fontWeight: "600", paddingVertical: spacing.md },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   emptyText: { color: colors.muted, fontSize: 15, textAlign: "center", fontWeight: "600" },
   retryBtn: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: radius.pill },

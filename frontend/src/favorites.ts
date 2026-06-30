@@ -11,6 +11,9 @@ export type FavShop = {
   rating?: number | null;
   image_url?: string | null;
   photo_name?: string | null;
+  open_now?: boolean | null;
+  schedule?: any[] | null;
+  user_rating_count?: number | null;
 };
 
 export async function getFavorites(): Promise<FavShop[]> {
@@ -47,6 +50,9 @@ export async function toggleFavorite(shop: any): Promise<boolean> {
         rating: shop.rating,
         image_url: shop.image_url ?? null,
         photo_name: shop.image_url ? null : shop.photo_name ?? (shop.photos?.[0] ?? null),
+        open_now: shop.open_now ?? null,
+        schedule: shop.schedule ?? null,
+        user_rating_count: shop.user_rating_count ?? null,
       },
     ];
     result = true;

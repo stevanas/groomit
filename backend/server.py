@@ -356,7 +356,7 @@ async def place_details(place_id: str, lang: str = "el"):
             "phone": p.get("internationalPhoneNumber", ""), "website": p.get("websiteUri", ""),
             "open_now": oh.get("openNow"),
             "photos": [ph["name"] for ph in p.get("photos", [])[:6]], "image_url": None,
-            "schedule": None, "schedule_text": oh.get("weekdayDescriptions", []),
+            "schedule": _periods_to_schedule(oh.get("periods")), "schedule_text": oh.get("weekdayDescriptions", []),
             "google_reviews": [
                 {"author": r.get("authorAttribution", {}).get("displayName", "Google"),
                  "rating": r.get("rating"), "text": r.get("text", {}).get("text", "")}

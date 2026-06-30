@@ -12,7 +12,7 @@ try {
 }
 
 // Use Google's official test unit during development; replace with your real banner unit ID for release.
-const REAL_BANNER_UNIT_ID = "ca-app-pub-9770198187060268/0000000000"; // TODO: replace with real AdMob banner unit ID
+const REAL_BANNER_UNIT_ID = "ca-app-pub-9770198187060268/9816758769";
 const BANNER_UNIT_ID = __DEV__ && Ads ? Ads.TestIds.ADAPTIVE_BANNER : REAL_BANNER_UNIT_ID;
 
 let initialized = false;

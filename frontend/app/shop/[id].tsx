@@ -71,7 +71,7 @@ export default function ShopDetail() {
   const googleReviews = shop.google_reviews || [];
   const cat = getCat(shop.category);
   const catIconName = shop.category === "groomer" ? "cut" : shop.category === "both" ? "ribbon" : "storefront";
-  const catLabelKey = shop.category === "groomer" ? "type.groomer" : shop.category === "both" ? "type.both" : "type.shop";
+  const catLabelKey = shop.category === "groomer" ? "type.groomer" : shop.category === "both" ? "type.bothFull" : "type.shop";
   const todayIdx = (new Date().getDay() + 6) % 7;
 
   const scheduleRows: { label: string; value: string; today: boolean }[] = [];
