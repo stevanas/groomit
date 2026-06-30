@@ -10,7 +10,7 @@ import CategoryChips from "@/src/components/CategoryChips";
 import MapShops from "@/src/components/MapShops";
 import { useShops } from "@/src/useShops";
 import { useI18n } from "@/src/i18n";
-import { colors, spacing, radius, shadow } from "@/src/theme";
+import { colors, spacing, radius } from "@/src/theme";
 
 const IS_WEB = Platform.OS === "web";
 
@@ -88,6 +88,17 @@ export default function BrowseScreen() {
     { value: "22:00", label: "22:00" },
   ];
 
+  const hasActiveFilters =
+    category !== "all" || query.trim() !== "" || openWhen !== "any" || openUntil !== null || sort !== "recommended";
+
+  const clearFilters = () => {
+    setCategory("all");
+    setQuery("");
+    setOpenWhen("any");
+    setOpenUntil(null);
+    setSort("recommended");
+  };
+
   const go = (s: any) => router.push(`/shop/${s.id}`);
 
   return (
@@ -155,6 +166,13 @@ export default function BrowseScreen() {
           <Ionicons name="swap-vertical" size={14} color={colors.onSurfaceTertiary} />
           <Text style={styles.sortText}>{t(`sort.${sort}`)}</Text>
         </Pressable>
+
+        {hasActiveFilters && (
+          <Pressable style={styles.clearChip} onPress={clearFilters} testID="clear-filters">
+            <Ionicons name="close" size={14} color={colors.error} />
+            <Text style={styles.clearText}>{t("filter.clear")}</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       <Modal visible={openSheet !== null} transparent animationType="fade" onRequestClose={() => setOpenSheet(null)}>
@@ -253,6 +271,8 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 13, fontWeight: "800", color: colors.success },
   filterTextActive: { color: colors.onBrand },
   sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 34, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, flexShrink: 0 },
+  clearChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.md, height: 34, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.error, flexShrink: 0 },
+  clearText: { fontSize: 13, fontWeight: "800", color: colors.error },
   sortText: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   sortSheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, paddingVertical: spacing.md, paddingTop: spacing.lg },
