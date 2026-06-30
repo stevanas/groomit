@@ -40,7 +40,7 @@ export default function CategoryChips({
 }
 
 const styles = StyleSheet.create({
-  rowWrap: { height: 56, justifyContent: "center" },
+  rowWrap: { height: 48, justifyContent: "center" },
   content: { gap: spacing.sm, paddingHorizontal: spacing.lg, alignItems: "center" },
   chip: {
     height: 36,

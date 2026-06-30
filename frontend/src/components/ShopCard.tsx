@@ -19,7 +19,7 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
       <Image source={{ uri: uri || undefined }} style={styles.img} contentFit="cover" transition={200} />
       <View style={styles.body}>
         <View style={styles.rowTop}>
-          <Text style={styles.name}>{shop.name}</Text>
+          <Text style={styles.name} numberOfLines={2}>{shop.name}</Text>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color={colors.warning} />
             <Text style={styles.rating}>{shop.rating ?? "–"}</Text>

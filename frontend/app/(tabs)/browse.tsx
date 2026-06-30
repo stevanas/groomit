@@ -127,8 +127,9 @@ export default function BrowseScreen() {
         </Pressable>
 
         {hasActiveFilters && (
-          <Pressable style={styles.clearChip} onPress={clearFilters} testID="clear-filters">
-            <Ionicons name="close" size={15} color={colors.error} />
+          <Pressable style={styles.clearBtn} onPress={clearFilters} testID="clear-filters">
+            <Ionicons name="close-circle" size={16} color={colors.muted} />
+            <Text style={styles.clearText}>{t("filter.clear")}</Text>
           </Pressable>
         )}
       </View>
@@ -215,7 +216,8 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 13, fontWeight: "800", color: colors.success },
   filterTextActive: { color: colors.onBrand },
   sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, flexShrink: 0 },
-  clearChip: { width: 36, height: 36, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.error, alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: "auto" },
+  clearBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, height: 36, flexShrink: 0, marginLeft: "auto" },
+  clearText: { fontSize: 13, fontWeight: "700", color: colors.muted },
   sortText: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   sortSheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, paddingVertical: spacing.md, paddingTop: spacing.lg },
@@ -223,7 +225,7 @@ const styles = StyleSheet.create({
   sortRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
   sortRowText: { fontSize: 16, color: colors.onSurface },
   sortRowActive: { fontWeight: "800", color: colors.brand },
-  count: { fontSize: 13, color: colors.muted, fontWeight: "700", paddingHorizontal: spacing.lg },
+  count: { fontSize: 13, color: colors.muted, fontWeight: "700", paddingHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.xs },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   emptyText: { color: colors.muted, fontSize: 15, textAlign: "center", fontWeight: "600" },
   retryBtn: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: radius.pill },

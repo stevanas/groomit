@@ -140,9 +140,16 @@ SEED_SHOPS = [
 
 def _classify(types, name):
     name_l = (name or "").lower()
-    if any(w in name_l for w in ["groom", "spa", "salon", "wash", "κομμωτ", "περιποί"]):
+    t = types or []
+    groom_kw = ["groom", "spa", "salon", "wash", "κομμωτ", "καλλωπ", "περιποί"]
+    store_kw = ["shop", "store", "petshop", "είδη", "κατάστημα", "supplies", "pet_store"]
+    has_groom = any(w in name_l for w in groom_kw)
+    has_store = ("pet_store" in t) or any(w in name_l for w in store_kw)
+    if has_groom and has_store:
+        return "both"
+    if has_groom:
         return "groomer"
-    return "shop" if (types and "pet_store" in types) else ("groomer" if "groom" in name_l else "shop")
+    return "shop"
 
 
 def _seed_card(s):
