@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Pressable, Modal, Platform, KeyboardAvoidingView,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, radius, shadow, fonts, ThemeColors } from "@/src/theme";
@@ -86,7 +87,7 @@ export default function FindScreen() {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" testID="find-screen">
         <View style={styles.brandRow}>
-          <View style={styles.logo}><Ionicons name="paw" size={22} color={colors.onBrand} /></View>
+          <Image source={require("../../assets/images/groomit-logo-circle.png")} style={styles.logo} contentFit="contain" />
           <Text style={styles.brand} numberOfLines={1}>{t("appName")}</Text>
         </View>
 
@@ -149,7 +150,7 @@ const makeStyles = (colors: ThemeColors) =>
   container: { flex: 1, backgroundColor: colors.surface },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.sm },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
-  logo: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" },
+  logo: { width: 40, height: 40 },
   brand: { fontSize: 26, color: colors.onSurface, fontFamily: fonts.display, fontWeight: "700" },
   heading: { fontSize: 26, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginTop: spacing.md },
   sub: { fontSize: 15, color: colors.muted, marginBottom: spacing.md, lineHeight: 21 },
