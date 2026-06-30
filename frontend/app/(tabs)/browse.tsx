@@ -146,10 +146,10 @@ export default function BrowseScreen() {
           testID="filter-open-now"
         >
           <Ionicons name="time" size={15} color={openNowOnly ? colors.onBrand : colors.success} />
-          <Text style={[styles.filterText, openNowOnly && styles.filterTextActive]}>{t("filter.openNow")}</Text>
+          <Text style={[styles.filterText, openNowOnly && styles.filterTextActive]} numberOfLines={1}>{t("filter.openNow")}</Text>
         </Pressable>
 
-        <TimePicker value={openUntil} onChange={setOpenUntil} options={untilOptions} has24h={has24h} testID="filter-until" />
+        <TimePicker value={openUntil} onChange={setOpenUntil} options={untilOptions} has24h={has24h} fill testID="filter-until" />
       </View>
 
       <View style={styles.filterRow}>
@@ -234,9 +234,9 @@ const styles = StyleSheet.create({
   toggle: { width: 50, height: 50, borderRadius: radius.md, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
   filterScroll: { flexGrow: 0, marginTop: spacing.xs },
   filterRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, alignItems: "center", marginTop: spacing.sm },
-  filterChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, flexShrink: 0 },
+  filterChip: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: spacing.md, height: 40, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
   filterChipActive: { backgroundColor: colors.success, borderColor: colors.success },
-  filterText: { fontSize: 13, fontWeight: "800", color: colors.success },
+  filterText: { fontSize: 13, fontWeight: "800", color: colors.success, flexShrink: 1 },
   filterTextActive: { color: colors.onBrand },
   sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, flexShrink: 0 },
   clearBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, height: 36, flexShrink: 0, marginLeft: "auto" },

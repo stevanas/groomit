@@ -9,12 +9,14 @@ export default function TimePicker({
   onChange,
   options,
   has24h,
+  fill,
   testID,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
   options: string[];
   has24h?: boolean;
+  fill?: boolean;
   testID?: string;
 }) {
   const { t } = useI18n();
@@ -25,7 +27,7 @@ export default function TimePicker({
 
   return (
     <>
-      <Pressable style={[styles.chip, active && styles.chipActive]} onPress={() => setOpen(true)} testID={testID}>
+      <Pressable style={[styles.chip, fill && styles.chipFill, active && styles.chipActive]} onPress={() => setOpen(true)} testID={testID}>
         <Ionicons name="hourglass-outline" size={15} color={active ? colors.onAccent : colors.accent} />
         <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>{label}</Text>
         <Ionicons name="chevron-down" size={13} color={active ? colors.onAccent : colors.accent} />
@@ -40,6 +42,12 @@ export default function TimePicker({
                 <Text style={[styles.rowText, !value && styles.rowActive]}>{t("filter.any")}</Text>
                 {!value && <Ionicons name="checkmark" size={20} color={colors.brand} />}
               </Pressable>
+              {options.map((tm) => (
+                <Pressable key={tm} style={styles.row} onPress={() => { onChange(tm); setOpen(false); }} testID={`time-${tm}`}>
+                  <Text style={[styles.rowText, value === tm && styles.rowActive]}>{tm}</Text>
+                  {value === tm && <Ionicons name="checkmark" size={20} color={colors.brand} />}
+                </Pressable>
+              ))}
               <Pressable
                 style={styles.row}
                 disabled={!has24h}
@@ -51,12 +59,6 @@ export default function TimePicker({
                 </Text>
                 {value === "24h" && <Ionicons name="checkmark" size={20} color={colors.brand} />}
               </Pressable>
-              {options.map((tm) => (
-                <Pressable key={tm} style={styles.row} onPress={() => { onChange(tm); setOpen(false); }} testID={`time-${tm}`}>
-                  <Text style={[styles.rowText, value === tm && styles.rowActive]}>{tm}</Text>
-                  {value === tm && <Ionicons name="checkmark" size={20} color={colors.brand} />}
-                </Pressable>
-              ))}
             </ScrollView>
           </Pressable>
         </Pressable>
@@ -66,9 +68,10 @@ export default function TimePicker({
 }
 
 const styles = StyleSheet.create({
-  chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, flexShrink: 0 },
+  chip: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: spacing.md, height: 40, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
+  chipFill: { flex: 1 },
   chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { fontSize: 13, fontWeight: "800", color: colors.accent },
+  chipText: { fontSize: 13, fontWeight: "800", color: colors.accent, flexShrink: 1 },
   chipTextActive: { color: colors.onAccent },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: "65%", paddingVertical: spacing.md, paddingTop: spacing.lg },

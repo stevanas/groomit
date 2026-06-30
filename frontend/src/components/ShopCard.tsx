@@ -10,13 +10,28 @@ const catLabelKey = (c?: string) =>
   c === "groomer" ? "common.groomer" : c === "both" ? "common.both" : "common.shop";
 const catIcon = (c?: string) => (c === "groomer" ? "cut" : c === "both" ? "ribbon" : "storefront");
 
+const TODAY_IDX = (new Date().getDay() + 6) % 7;
+
 export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => void }) {
   const { t } = useI18n();
   const uri = photoUrl(shop);
   const cat = getCat(shop.category);
+  const today = shop.schedule?.[TODAY_IDX];
+  const is24h = today && !today.closed && today.open === "00:00" && today.close === "23:59";
+  const closesAt = today && !today.closed && today.close && !is24h ? today.close : null;
   return (
     <Pressable style={styles.card} onPress={onPress} testID={`shop-card-${shop.id}`}>
-      <Image source={{ uri: uri || undefined }} style={styles.img} contentFit="cover" transition={200} />
+      <View>
+        <Image source={{ uri: uri || undefined }} style={styles.img} contentFit="cover" transition={200} />
+        {(closesAt || is24h) && (
+          <View style={styles.closesPill}>
+            <Ionicons name="hourglass-outline" size={10} color={colors.onAccent} />
+            <Text style={styles.closesText}>
+              {is24h ? t("card.open24") : t("card.closes", { time: closesAt })}
+            </Text>
+          </View>
+        )}
+      </View>
       <View style={styles.body}>
         <View style={styles.rowTop}>
           <Text style={styles.name} numberOfLines={2}>{shop.name}</Text>
@@ -57,6 +72,8 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: "800", color: colors.onSurface, flex: 1, lineHeight: 20 },
   addr: { fontSize: 13, color: colors.muted, marginTop: 2 },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.sm, gap: spacing.xs },
+  closesPill: { position: "absolute", top: 6, left: 6, flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: colors.accent },
+  closesText: { fontSize: 10, fontWeight: "800", color: colors.onAccent },
   tag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, flexShrink: 0 },
   tagText: { fontSize: 11, fontWeight: "800" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 0, marginTop: 1 },
