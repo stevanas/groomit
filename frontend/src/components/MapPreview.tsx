@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import MapShops from "@/src/components/MapShops";
 import { useI18n } from "@/src/i18n";
-import { colors, spacing, radius, shadow } from "@/src/theme";
+import { spacing, radius, shadow, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 // A non-interactive map card that expands to the full /map screen on tap.
 export default function MapPreview({
@@ -22,6 +23,8 @@ export default function MapPreview({
   testID?: string;
 }) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.card}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -37,7 +40,8 @@ export default function MapPreview({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   card: {
     height: 180,
     borderRadius: radius.md,

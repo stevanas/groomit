@@ -7,12 +7,15 @@ import ShopCard from "@/src/components/ShopCard";
 import { getFavorites } from "@/src/favorites";
 import { apiGet } from "@/src/api";
 import { useI18n } from "@/src/i18n";
-import { colors, spacing, fonts } from "@/src/theme";
+import { spacing, fonts, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 export default function FavoritesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t, lang } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [favs, setFavs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,7 +71,8 @@ export default function FavoritesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
   title: { fontSize: 28, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display },

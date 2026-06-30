@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator } from 
 import { Ionicons } from "@expo/vector-icons";
 import { apiGet } from "@/src/api";
 import { useI18n } from "@/src/i18n";
-import { colors, spacing, radius, shadow } from "@/src/theme";
+import { spacing, radius, shadow, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 type Suggestion = { place_id: string; description: string; main: string; secondary: string };
 
@@ -21,6 +22,8 @@ export default function LocationAutocomplete({
   testID?: string;
 }) {
   const { t, lang } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -106,7 +109,8 @@ export default function LocationAutocomplete({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   wrap: { position: "relative", zIndex: 20 },
   field: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: spacing.md, height: 52 },
   input: { flex: 1, fontSize: 16, color: colors.onSurface },

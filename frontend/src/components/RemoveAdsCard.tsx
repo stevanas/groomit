@@ -3,11 +3,14 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from "rea
 import { Ionicons } from "@expo/vector-icons";
 import { usePremium } from "@/src/premium";
 import { useI18n } from "@/src/i18n";
-import { colors, spacing, radius, shadow } from "@/src/theme";
+import { spacing, radius, shadow, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 export default function RemoveAdsCard() {
   const { t } = useI18n();
   const { isPremium, available, price, buy, restore } = usePremium();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [busy, setBusy] = useState<null | "buy" | "restore">(null);
   const displayPrice = price || "€1.99";
 
@@ -57,6 +60,7 @@ export default function RemoveAdsCard() {
           <Text style={styles.title}>{t("support.removeAdsTitle")}</Text>
           <Text style={styles.desc}>{t("support.desc")}</Text>
         </View>
+        <View style={styles.priceBadge}><Text style={styles.priceText}>{displayPrice}</Text></View>
       </View>
 
       <Pressable style={styles.buyBtn} onPress={onBuy} disabled={busy !== null} testID="buy-remove-ads">
@@ -65,7 +69,7 @@ export default function RemoveAdsCard() {
         ) : (
           <>
             <Ionicons name="sparkles" size={18} color={colors.onBrand} />
-            <Text style={styles.buyText} numberOfLines={1} adjustsFontSizeToFit>{`${t("support.buy")} · ${displayPrice}`}</Text>
+            <Text style={styles.buyText} numberOfLines={1}>{t("support.buy")}</Text>
           </>
         )}
       </Pressable>
@@ -79,7 +83,8 @@ export default function RemoveAdsCard() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, padding: spacing.lg, gap: spacing.md, ...shadow.card },
   thanksCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   thanksText: { flex: 1, fontSize: 14, fontWeight: "700", color: colors.onSurface },
@@ -87,6 +92,8 @@ const styles = StyleSheet.create({
   icon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 16, fontWeight: "800", color: colors.onSurface },
   desc: { fontSize: 13, color: colors.muted, marginTop: 2, lineHeight: 18 },
+  priceBadge: { backgroundColor: colors.brandTertiary, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill },
+  priceText: { fontSize: 15, fontWeight: "900", color: colors.onBrandTertiary },
   buyBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, height: 52, borderRadius: radius.pill, backgroundColor: colors.brand, paddingHorizontal: spacing.md },
   buyText: { color: colors.onBrand, fontSize: 15, fontWeight: "800", flexShrink: 1 },
   restoreBtn: { alignItems: "center", justifyContent: "center", height: 32 },

@@ -11,9 +11,11 @@ import { apiGet, photoUrl } from "@/src/api";
 import { isFavorite, toggleFavorite } from "@/src/favorites";
 import { useI18n } from "@/src/i18n";
 import StoreMapSection from "@/src/components/StoreMapSection";
-import { colors, spacing, radius, shadow, fonts, getCat } from "@/src/theme";
+import { spacing, radius, shadow, fonts, getCat, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 function Stars({ value, size = 14 }: { value: number; size?: number }) {
+  const { colors } = useTheme();
   return (
     <View style={{ flexDirection: "row", gap: 1 }}>
       {[1, 2, 3, 4, 5].map((i) => (
@@ -28,6 +30,8 @@ export default function ShopDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t, lang } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [shop, setShop] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -231,7 +235,8 @@ export default function ShopDetail() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, backgroundColor: colors.surface },
   errTitle: { fontSize: 16, fontWeight: "700", color: colors.onSurface },

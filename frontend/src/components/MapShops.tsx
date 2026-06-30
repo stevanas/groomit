@@ -2,7 +2,8 @@ import React, { useRef, useEffect } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, getCat } from "@/src/theme";
+import { getCat, ThemeColors } from "@/src/theme";
+import { useThemedStyles } from "@/src/theme-context";
 
 // Hide Google's POI / transit / business clutter so only our pins stand out.
 const MAP_STYLE = [
@@ -31,6 +32,7 @@ export default function MapShops({
   delta?: number;
 }) {
   const mapRef = useRef<MapView>(null);
+  const styles = useThemedStyles(makeStyles);
   const center = region || { latitude: 37.9838, longitude: 23.7275 };
 
   // Re-center when the resolved location (GPS / search) changes.
@@ -91,7 +93,8 @@ export default function MapShops({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   wrap: { flex: 1 },
   pin: {
     width: 36,

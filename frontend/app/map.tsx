@@ -8,13 +8,16 @@ import MapShops from "@/src/components/MapShops";
 import { useShops } from "@/src/useShops";
 import { useI18n } from "@/src/i18n";
 import { photoUrl } from "@/src/api";
-import { colors, spacing, radius, shadow, getCat } from "@/src/theme";
+import { spacing, radius, shadow, getCat, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 export default function MapScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const { lang } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const params = useLocalSearchParams<{ lat?: string; lng?: string; focusId?: string; category?: string }>();
 
   const center =
@@ -83,7 +86,8 @@ export default function MapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   close: {
     position: "absolute",

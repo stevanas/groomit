@@ -119,6 +119,12 @@ const el: Dict = {
   "support.failed": "Η αγορά απέτυχε. Δοκίμασε ξανά.",
   "support.noPurchases": "Δεν βρέθηκαν προηγούμενες αγορές.",
   "support.thanksAdvance": "Σε ευχαριστούμε εκ των προτέρων 💛",
+  "support.upsell": "Αφαίρεση διαφημίσεων",
+  "theme.choose": "Διάλεξε εμφάνιση",
+  "theme.sub": "Μπορείς να την αλλάξεις όποτε θες από τις ρυθμίσεις.",
+  "theme.title": "Εμφάνιση",
+  "theme.light": "Φωτεινό",
+  "theme.dark": "Σκοτεινό",
   "profile.footer": "GR-oom It · βρες την καλύτερη φροντίδα για το κατοικίδιό σου",
 };
 
@@ -236,6 +242,12 @@ const en: Dict = {
   "support.failed": "Purchase failed. Please try again.",
   "support.noPurchases": "No previous purchases found.",
   "support.thanksAdvance": "Thank you in advance 💛",
+  "support.upsell": "Remove ads",
+  "theme.choose": "Choose appearance",
+  "theme.sub": "You can change this anytime in settings.",
+  "theme.title": "Appearance",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
   "profile.footer": "GR-oom It · find the best pet care nearby",
 };
 

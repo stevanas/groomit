@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius } from "@/src/theme";
+import { spacing, radius, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 import { useI18n } from "@/src/i18n";
 
 export type WhenValue = { type: "any" | "today" | "tomorrow" | "date"; date?: string };
@@ -33,6 +34,8 @@ export default function WhenPicker({
   testID?: string;
 }) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [open, setOpen] = useState(false);
   const [cal, setCal] = useState(false);
   const [viewMonth, setViewMonth] = useState(startOfMonth(new Date()));
@@ -147,7 +150,8 @@ export default function WhenPicker({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   field: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: spacing.md, height: 52 },
   fieldValue: { flex: 1, fontSize: 16, fontWeight: "700", color: colors.onSurface },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
-import { colors, spacing, radius } from "@/src/theme";
+import { spacing, radius, ThemeColors } from "@/src/theme";
+import { useThemedStyles } from "@/src/theme-context";
 import { useI18n } from "@/src/i18n";
 
 const KEYS = [
@@ -18,6 +19,7 @@ export default function CategoryChips({
   onChange: (v: string) => void;
 }) {
   const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.rowWrap}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -39,7 +41,8 @@ export default function CategoryChips({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   rowWrap: { height: 48, justifyContent: "center" },
   content: { gap: spacing.sm, paddingHorizontal: spacing.lg, alignItems: "center" },
   chip: {

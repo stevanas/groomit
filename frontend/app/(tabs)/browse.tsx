@@ -10,9 +10,11 @@ import CategoryChips from "@/src/components/CategoryChips";
 import TimePicker from "@/src/components/TimePicker";
 import MapShops from "@/src/components/MapShops";
 import AdBanner from "@/src/components/AdBanner";
+import AdUpsell from "@/src/components/AdUpsell";
 import { useShops } from "@/src/useShops";
 import { useI18n } from "@/src/i18n";
-import { colors, spacing, radius } from "@/src/theme";
+import { spacing, radius, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 const IS_WEB = Platform.OS === "web";
 
@@ -31,6 +33,8 @@ export default function BrowseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t, lang } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const params = useLocalSearchParams<{ category?: string; location?: string; day?: string }>();
 
   const [category, setCategory] = useState(params.category || "all");
@@ -228,6 +232,7 @@ export default function BrowseScreen() {
               {!hasMore && !loadingMore && filtered.length > 0 && (
                 <Text style={styles.noMore}>{t("browse.noMore")}</Text>
               )}
+              <AdUpsell />
               <AdBanner />
             </View>
           }
@@ -238,7 +243,8 @@ export default function BrowseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg },
   searchBar: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, borderRadius: radius.pill, paddingHorizontal: spacing.lg, height: 50, borderWidth: 1, borderColor: colors.border },

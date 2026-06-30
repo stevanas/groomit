@@ -5,7 +5,8 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, spacing, radius, shadow, fonts } from "@/src/theme";
+import { spacing, radius, shadow, fonts, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 import { useI18n } from "@/src/i18n";
 import WhenPicker, { WhenValue, whenToDay } from "@/src/components/WhenPicker";
 import MapPreview from "@/src/components/MapPreview";
@@ -17,6 +18,8 @@ type Option = { value: string; label: string };
 function PickerField({
   icon, value, options, onSelect, testID,
 }: { icon: any; value: string; options: Option[]; onSelect: (v: string) => void; testID: string }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value);
   return (
@@ -53,6 +56,8 @@ export default function FindScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t, lang } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [type, setType] = useState("all");
   const [location, setLocation] = useState("");
@@ -139,7 +144,8 @@ export default function FindScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.sm },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },

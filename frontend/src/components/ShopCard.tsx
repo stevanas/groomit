@@ -2,7 +2,8 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, shadow, getCat } from "@/src/theme";
+import { spacing, radius, shadow, getCat, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 import { photoUrl } from "@/src/api";
 import { useI18n } from "@/src/i18n";
 
@@ -14,6 +15,8 @@ const TODAY_IDX = (new Date().getDay() + 6) % 7;
 
 export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => void }) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const uri = photoUrl(shop);
   const cat = getCat(shop.category);
   const today = shop.schedule?.[TODAY_IDX];
@@ -64,7 +67,8 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   card: { flexDirection: "row", backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, overflow: "hidden", minHeight: 104, ...shadow.card },
   img: { width: 96, alignSelf: "stretch", minHeight: 104, backgroundColor: colors.surfaceTertiary },
   body: { flex: 1, padding: spacing.md, justifyContent: "center" },

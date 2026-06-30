@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Text, StyleSheet, Pressable, Modal, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius } from "@/src/theme";
+import { spacing, radius, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
 import { useI18n } from "@/src/i18n";
 
 export default function TimePicker({
@@ -20,6 +21,8 @@ export default function TimePicker({
   testID?: string;
 }) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [open, setOpen] = useState(false);
   const active = !!value;
 
@@ -67,7 +70,8 @@ export default function TimePicker({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   chip: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: spacing.md, height: 40, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
   chipFill: { flex: 1 },
   chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },

@@ -4,15 +4,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useI18n, Lang } from "@/src/i18n";
 import RemoveAdsCard from "@/src/components/RemoveAdsCard";
-import { colors, spacing, radius, shadow, fonts } from "@/src/theme";
+import { spacing, radius, shadow, fonts, ThemeColors } from "@/src/theme";
+import { useTheme, useThemedStyles, ThemeMode } from "@/src/theme-context";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { t, lang, setLang } = useI18n();
+  const { colors, mode, setMode } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const langs: { code: Lang; label: string }[] = [
     { code: "el", label: "Ελληνικά" },
     { code: "en", label: "English" },
+  ];
+
+  const themes: { code: ThemeMode; label: string; icon: any }[] = [
+    { code: "light", label: t("theme.light"), icon: "sunny" },
+    { code: "dark", label: t("theme.dark"), icon: "moon" },
   ];
 
   return (
@@ -49,6 +57,24 @@ export default function ProfileScreen() {
         })}
       </View>
 
+      <Text style={styles.sectionLabel}>{t("theme.title")}</Text>
+      <View style={styles.langRow}>
+        {themes.map((th) => {
+          const active = mode === th.code;
+          return (
+            <Pressable
+              key={th.code}
+              style={[styles.langBtn, active && styles.langBtnActive]}
+              onPress={() => setMode(th.code)}
+              testID={`theme-${th.code}`}
+            >
+              <Ionicons name={th.icon} size={17} color={active ? colors.onBrand : colors.onSurfaceTertiary} />
+              <Text style={[styles.langText, active && styles.langTextActive]}>{th.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <Text style={styles.sectionLabel}>{t("support.title")}</Text>
       <RemoveAdsCard />
 
@@ -64,7 +90,8 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   content: { padding: spacing.lg, paddingBottom: spacing.xxxl, flexGrow: 1 },
   title: { fontSize: 28, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginBottom: spacing.lg },

@@ -3,11 +3,12 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors } from "@/src/theme";
+import { useTheme } from "@/src/theme-context";
 import { useI18n } from "@/src/i18n";
 
 export default function TabsLayout() {
   const { t } = useI18n();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 10 : 8);
 

@@ -1,4 +1,4 @@
-export const colors = {
+export const lightColors = {
   surface: "#FBF5EE",
   onSurface: "#241F1A",
   surfaceSecondary: "#FFFFFF",
@@ -23,6 +23,37 @@ export const colors = {
   borderStrong: "#D8C9B6",
   muted: "#9A8E7F",
 };
+
+export const darkColors: typeof lightColors = {
+  surface: "#17130F",
+  onSurface: "#F5EEE6",
+  surfaceSecondary: "#221C16",
+  onSurfaceSecondary: "#F5EEE6",
+  surfaceTertiary: "#2E261E",
+  onSurfaceTertiary: "#C9BEB0",
+  surfaceInverse: "#FFF7EE",
+  onSurfaceInverse: "#241F1A",
+  brand: "#EE7547",
+  onBrand: "#FFFFFF",
+  brandSecondary: "#5A2A16",
+  onBrandSecondary: "#FBD9C6",
+  brandTertiary: "#3A271C",
+  onBrandTertiary: "#F3B999",
+  accent: "#43B5AB",
+  onAccent: "#06201D",
+  success: "#54BA92",
+  warning: "#E6A93C",
+  error: "#E26B6B",
+  info: "#9FB0AB",
+  border: "#352D25",
+  borderStrong: "#4A4036",
+  muted: "#A29686",
+};
+
+export type ThemeColors = typeof lightColors;
+
+// Default static export (light). Components use useTheme() for runtime theming.
+export const colors = lightColors;
 
 export const fonts = {
   display: "Comfortaa",
