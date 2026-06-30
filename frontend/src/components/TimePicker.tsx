@@ -23,7 +23,7 @@ export default function TimePicker({
   const [open, setOpen] = useState(false);
   const active = !!value;
 
-  const label = value === "24h" ? t("filter.open24") : value ? `${t("filter.until")} ${value}` : t("filter.until");
+  const label = value === "24h" ? t("filter.open24") : value ? `${t("filter.until")} ${value}` : `${t("filter.until")}…`;
 
   return (
     <>

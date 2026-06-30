@@ -7,7 +7,7 @@ import { photoUrl } from "@/src/api";
 
 // Web fallback for react-native-maps (no web support).
 // Renders a stylized "map" panel listing shop pins.
-export default function MapShops({ shops, onSelect }: { shops: any[]; onSelect: (s: any) => void }) {
+export default function MapShops({ shops, onSelect }: { shops: any[]; onSelect?: (s: any) => void }) {
   return (
     <View style={styles.wrap} testID="map-web-fallback">
       <View style={styles.bg}>
@@ -16,7 +16,7 @@ export default function MapShops({ shops, onSelect }: { shops: any[]; onSelect: 
       </View>
       <ScrollView style={styles.pinList} contentContainerStyle={{ padding: spacing.lg, paddingTop: 140, paddingBottom: 220 }}>
         {shops.map((s) => (
-          <Pressable key={s.id} style={styles.pinCard} onPress={() => onSelect(s)} testID={`map-pin-${s.id}`}>
+          <Pressable key={s.id} style={styles.pinCard} onPress={() => onSelect?.(s)} testID={`map-pin-${s.id}`}>
             <Image source={{ uri: photoUrl(s) || undefined }} style={styles.pinImg} contentFit="cover" />
             <View style={{ flex: 1 }}>
               <Text style={styles.pinName} numberOfLines={1}>{s.name}</Text>

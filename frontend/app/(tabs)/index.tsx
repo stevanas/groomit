@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, radius, shadow, fonts } from "@/src/theme";
 import { useI18n } from "@/src/i18n";
 import WhenPicker, { WhenValue, whenToDay } from "@/src/components/WhenPicker";
+import MapPreview from "@/src/components/MapPreview";
+import { useShops } from "@/src/useShops";
 
 type Option = { value: string; label: string };
 
@@ -49,11 +51,13 @@ function PickerField({
 export default function FindScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const [type, setType] = useState("all");
   const [location, setLocation] = useState("");
   const [when, setWhen] = useState<WhenValue>({ type: "any" });
+
+  const { shops, region } = useShops("all", { lang });
 
   const typeOptions: Option[] = [
     { value: "groomer", label: t("type.groomer") },
@@ -108,6 +112,19 @@ export default function FindScreen() {
             <Text style={styles.searchText}>{t("find.search")}</Text>
           </Pressable>
         </View>
+
+        <Text style={styles.quick}>{t("map.near")}</Text>
+        <MapPreview
+          shops={shops}
+          region={region}
+          onPress={() =>
+            router.push({
+              pathname: "/map",
+              params: { lat: String(region.latitude), lng: String(region.longitude) },
+            })
+          }
+          testID="home-map-preview"
+        />
 
         <Text style={styles.quick}>{t("find.quick")}</Text>
         <View style={styles.quickRow}>

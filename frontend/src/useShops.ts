@@ -5,16 +5,17 @@ import { apiGet } from "@/src/api";
 
 const DEFAULT = { latitude: 37.9838, longitude: 23.7275 }; // Athens
 
-type Opts = { locationQuery?: string; day?: number; lang?: string };
+type Opts = { locationQuery?: string; day?: number; lang?: string; center?: { latitude: number; longitude: number } };
 
 export function useShops(category: string, opts: Opts = {}) {
-  const { locationQuery, day = -1, lang = "el" } = opts;
+  const { locationQuery, day = -1, lang = "el", center } = opts;
   const [shops, setShops] = useState<any[]>([]);
-  const [region, setRegion] = useState(DEFAULT);
+  const [region, setRegion] = useState(center || DEFAULT);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const resolveLocation = useCallback(async () => {
+    if (center) return center;
     if (locationQuery && locationQuery.trim()) {
       try {
         const g = await apiGet(`/places/geocode?q=${encodeURIComponent(locationQuery)}&lang=${lang}`);
@@ -32,7 +33,7 @@ export function useShops(category: string, opts: Opts = {}) {
     } catch {
       return DEFAULT;
     }
-  }, [locationQuery, lang]);
+  }, [locationQuery, lang, center?.latitude, center?.longitude]);
 
   const load = useCallback(async () => {
     setLoading(true);

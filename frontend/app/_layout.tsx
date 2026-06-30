@@ -39,6 +39,7 @@ export default function RootLayout() {
               <Stack.Screen name="login" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="shop/[id]" options={{ presentation: "card" }} />
+              <Stack.Screen name="map" options={{ presentation: "fullScreenModal", animation: "fade" }} />
             </Stack>
           </AuthProvider>
         </I18nProvider>

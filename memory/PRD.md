@@ -3,7 +3,8 @@
 ## Update 2026-06-30 (live data + filters)
 - **Google Places API key added** → app now serves LIVE data (real shops, photos, ratings, Greek opening hours, Google reviews) + typed-location search via Geocoding.
 - Fixed photo proxy route ordering (`/places/photo` was shadowed by `/places/{id}`); photos now stream correctly with redirect-following.
-- Browse filters: **Open (now / specific day)** dropdown + **Open until [time]** + **Sort (Recommended / Distance / Rating)** with per-card distance (km). Open/closed badge restyled (icon + label, no clipping). "Open now" & "Open until" pills are equal-width (no clipping); 24h option sits at bottom of picker (disabled when no 24h data). Each card shows a closing-hour pill ("έως 20:30") in the image top-left corner.
+- Browse filters: **Open (now / specific day)** dropdown + **Open until [time]** + **Sort (Recommended / Distance / Rating)** with per-card distance (km). Filter pills use short labels ("Ανοιχτά" / "Μέχρι…") that never clip; 24h option at bottom of picker (disabled when no data). Each card shows a closing-hour pill ("έως 20:30") in the image corner.
+- **Maps**: live GPS device location (expo-location) powers nearby results & distance sort. Decluttered Google map (POI/transit/business labels hidden). Map preview card on Home ("Κοντά σου") and a Location section on shop details (store highlighted + nearby pins); both expand to a full-screen `/map` route. Maps/GPS render only in a native build, not the web preview.
 - Find type options clarified: Groomer · Pet Shop · Both · Either. Selecting Groomer/Shop also surfaces "Both" stores. Full shop names (no truncation). "φροντίδα" added to Find subtitle.
 - NOTE: day/"open until" filters use schedule data (full on seed; live nearby returns only open_now, so those advanced filters keep shops with unknown hours rather than hiding them).
 

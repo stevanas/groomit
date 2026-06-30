@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet, photoUrl } from "@/src/api";
 import { isFavorite, toggleFavorite } from "@/src/favorites";
 import { useI18n } from "@/src/i18n";
+import StoreMapSection from "@/src/components/StoreMapSection";
 import { colors, spacing, radius, shadow, fonts, getCat } from "@/src/theme";
 
 function Stars({ value, size = 14 }: { value: number; size?: number }) {
@@ -156,6 +157,14 @@ export default function ShopDetail() {
               </View>
             </>
           )}
+
+          {/* Location */}
+          {shop.latitude && shop.longitude ? (
+            <>
+              <Text style={styles.sectionTitle}>{t("shop.location")}</Text>
+              <StoreMapSection shop={shop} />
+            </>
+          ) : null}
 
           {/* Reviews */}
           <Text style={styles.sectionTitle}>{t("shop.reviews")}</Text>
