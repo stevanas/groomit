@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "PawFind",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,14 +9,21 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Find pet shops and groomers near you"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#4CA771"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -31,7 +38,13 @@
           "image": "./assets/images/splash-image.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#4CA771"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Find pet shops and groomers near you"
         }
       ]
     ],
