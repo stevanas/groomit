@@ -1,14 +1,17 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, ScrollView, FlatList, Platform } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapShops from "@/src/components/MapShops";
 import CategoryChips from "@/src/components/CategoryChips";
+import ShopCard from "@/src/components/ShopCard";
 import { useShops } from "@/src/useShops";
 import { photoUrl } from "@/src/api";
 import { colors, spacing, radius, shadow } from "@/src/theme";
+
+const IS_WEB = Platform.OS === "web";
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
@@ -18,13 +21,53 @@ export default function ExploreScreen() {
 
   const go = (s: any) => router.push(`/shop/${s.id}`);
 
+  // ----- WEB: clean in-flow layout (no real map available on web) -----
+  if (IS_WEB) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.surface, paddingTop: insets.top + spacing.sm }]} testID="explore-screen">
+        <View style={styles.webHeader}>
+          <View style={styles.searchBar}>
+            <Ionicons name="paw" size={20} color={colors.brand} />
+            <Text style={styles.searchText}>Find pet shops & groomers</Text>
+          </View>
+          <CategoryChips value={category} onChange={setCategory} />
+        </View>
+
+        {loading ? (
+          <View style={styles.webCenter}><ActivityIndicator size="large" color={colors.brand} /></View>
+        ) : error ? (
+          <View style={styles.webCenter}>
+            <Ionicons name="cloud-offline" size={48} color={colors.muted} />
+            <Text style={styles.errorText}>{error}</Text>
+            <Pressable style={styles.retryBtn} onPress={reload} testID="explore-retry">
+              <Text style={styles.retryText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : shops.length === 0 ? (
+          <View style={styles.webCenter}>
+            <Ionicons name="sad-outline" size={48} color={colors.muted} />
+            <Text style={styles.errorText}>No shops found nearby. Try another filter!</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={shops}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => <ShopCard shop={item} onPress={() => go(item)} />}
+            contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxxl }}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+      </View>
+    );
+  }
+
+  // ----- NATIVE: full-screen map with floating header + Top Picks -----
   return (
     <View style={styles.container} testID="explore-screen">
       <View style={StyleSheet.absoluteFill}>
         <MapShops shops={shops} region={region} onSelect={go} />
       </View>
 
-      {/* Floating header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
         <View style={styles.searchBar}>
           <Ionicons name="paw" size={20} color={colors.brand} />
@@ -49,7 +92,6 @@ export default function ExploreScreen() {
         </View>
       )}
 
-      {/* Top picks carousel */}
       {!loading && shops.length > 0 && (
         <View style={[styles.carouselWrap, { bottom: spacing.md }]} pointerEvents="box-none">
           <Text style={styles.carouselTitle}>Top Picks Nearby</Text>
@@ -76,13 +118,15 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surfaceTertiary },
+  webHeader: { gap: spacing.sm, paddingBottom: spacing.xs },
+  webCenter: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   header: { position: "absolute", top: 0, left: 0, right: 0, gap: spacing.sm },
   searchBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.lg, backgroundColor: colors.surfaceSecondary, borderRadius: radius.pill, paddingHorizontal: spacing.lg, height: 52, ...shadow.float },
   searchText: { color: colors.muted, fontSize: 15, fontWeight: "600" },
   loadingPill: { position: "absolute", alignSelf: "center", top: "45%", flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.pill, ...shadow.float },
   loadingText: { color: colors.onSurface, fontWeight: "700" },
   errorBox: { position: "absolute", alignSelf: "center", top: "45%", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, padding: spacing.lg, borderRadius: radius.md, ...shadow.float },
-  errorText: { color: colors.onSurface, fontWeight: "700" },
+  errorText: { color: colors.onSurface, fontWeight: "700", textAlign: "center" },
   retryBtn: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: radius.pill },
   retryText: { color: colors.onBrand, fontWeight: "800" },
   carouselWrap: { position: "absolute", left: 0, right: 0, gap: spacing.sm },
