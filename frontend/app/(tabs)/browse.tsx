@@ -9,6 +9,7 @@ import ShopCard from "@/src/components/ShopCard";
 import CategoryChips from "@/src/components/CategoryChips";
 import TimePicker from "@/src/components/TimePicker";
 import MapShops from "@/src/components/MapShops";
+import AdBanner from "@/src/components/AdBanner";
 import { useShops } from "@/src/useShops";
 import { useI18n } from "@/src/i18n";
 import { colors, spacing, radius } from "@/src/theme";
@@ -219,6 +220,7 @@ export default function BrowseScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: spacing.xxxl }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          ListFooterComponent={<AdBanner />}
           refreshControl={<RefreshControl refreshing={false} onRefresh={reload} tintColor={colors.brand} />}
         />
       )}

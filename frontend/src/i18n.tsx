@@ -105,6 +105,16 @@ const el: Dict = {
   "profile.guest": "Περιήγηση ως επισκέπτης",
   "profile.savedNote": "Τα αποθηκευμένα σου κρατούνται σε αυτή τη συσκευή",
   "profile.language": "Γλώσσα",
+  "support.title": "Υποστήριξη",
+  "support.removeAdsTitle": "Αφαίρεση διαφημίσεων",
+  "support.desc": "Μία εφάπαξ αγορά αφαιρεί όλες τις διαφημίσεις και υποστηρίζει την ανάπτυξη της εφαρμογής.",
+  "support.buy": "Αφαίρεση διαφημίσεων & υποστήριξη",
+  "support.restore": "Επαναφορά αγοράς",
+  "support.thanks": "Ευχαριστούμε για την υποστήριξη! Οι διαφημίσεις αφαιρέθηκαν.",
+  "support.unavailable": "Διαθέσιμο στη δημοσιευμένη εφαρμογή.",
+  "support.processing": "Επεξεργασία…",
+  "support.failed": "Η αγορά απέτυχε. Δοκίμασε ξανά.",
+  "support.noPurchases": "Δεν βρέθηκαν προηγούμενες αγορές.",
   "profile.footer": "GR-oom It · βρες την καλύτερη φροντίδα για το κατοικίδιό σου",
 };
 
@@ -208,6 +218,16 @@ const en: Dict = {
   "profile.guest": "Browsing as guest",
   "profile.savedNote": "Your saved spots are kept on this device",
   "profile.language": "Language",
+  "support.title": "Support",
+  "support.removeAdsTitle": "Remove ads",
+  "support.desc": "A one-time purchase removes all ads and supports the app's development.",
+  "support.buy": "Remove ads & support",
+  "support.restore": "Restore purchase",
+  "support.thanks": "Thanks for your support! Ads have been removed.",
+  "support.unavailable": "Available in the published app.",
+  "support.processing": "Processing…",
+  "support.failed": "Purchase failed. Please try again.",
+  "support.noPurchases": "No previous purchases found.",
   "profile.footer": "GR-oom It · find the best pet care nearby",
 };
 

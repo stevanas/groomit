@@ -1,8 +1,9 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useI18n, Lang } from "@/src/i18n";
+import RemoveAdsCard from "@/src/components/RemoveAdsCard";
 import { colors, spacing, radius, shadow, fonts } from "@/src/theme";
 
 export default function ProfileScreen() {
@@ -15,7 +16,12 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]} testID="profile-screen">
+    <ScrollView
+      style={[styles.container, { paddingTop: insets.top + spacing.md }]}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      testID="profile-screen"
+    >
       <Text style={styles.title}>{t("profile.title")}</Text>
 
       <View style={styles.card}>
@@ -43,6 +49,9 @@ export default function ProfileScreen() {
         })}
       </View>
 
+      <Text style={styles.sectionLabel}>{t("support.title")}</Text>
+      <RemoveAdsCard />
+
       <View style={styles.menu}>
         <View style={styles.menuItem}>
           <Ionicons name="heart" size={20} color={colors.brand} />
@@ -51,12 +60,13 @@ export default function ProfileScreen() {
       </View>
 
       <Text style={styles.footer}>{t("profile.footer")}</Text>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface, padding: spacing.lg },
+  container: { flex: 1, backgroundColor: colors.surface },
+  content: { padding: spacing.lg, paddingBottom: spacing.xxxl, flexGrow: 1 },
   title: { fontSize: 28, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginBottom: spacing.lg },
   card: { alignItems: "center", backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.xs, ...shadow.card },
   logo: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center", marginBottom: spacing.sm },

@@ -9,6 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { AuthProvider } from "@/src/auth";
 import { I18nProvider } from "@/src/i18n";
+import { PremiumProvider } from "@/src/premium";
 
 LogBox.ignoreAllLogs(true);
 SplashScreen.preventAutoHideAsync();
@@ -34,13 +35,15 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <I18nProvider>
           <AuthProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="login" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="shop/[id]" options={{ presentation: "card" }} />
-              <Stack.Screen name="map" options={{ presentation: "fullScreenModal", animation: "fade" }} />
-            </Stack>
+            <PremiumProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="shop/[id]" options={{ presentation: "card" }} />
+                <Stack.Screen name="map" options={{ presentation: "fullScreenModal", animation: "fade" }} />
+              </Stack>
+            </PremiumProvider>
           </AuthProvider>
         </I18nProvider>
       </SafeAreaProvider>

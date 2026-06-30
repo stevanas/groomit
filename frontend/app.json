@@ -46,10 +46,16 @@
         {
           "locationWhenInUsePermission": "Find pet shops and groomers near you"
         }
-      ]
+      ],
+      "react-native-google-mobile-ads",
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true
     }
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-9770198187060268~96865297343",
+    "ios_app_id": "ca-app-pub-9770198187060268~96865297343"
   }
 }
