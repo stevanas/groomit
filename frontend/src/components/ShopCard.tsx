@@ -33,7 +33,7 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
         <View style={styles.metaRow}>
           <View style={[styles.tag, { backgroundColor: cat.soft }]}>
             <Ionicons name={catIcon(shop.category)} size={12} color={cat.onSoft} />
-            <Text style={[styles.tagText, { color: cat.onSoft }]}>{t(catLabelKey(shop.category))}</Text>
+            <Text style={[styles.tagText, { color: cat.onSoft }]} numberOfLines={1}>{t(catLabelKey(shop.category))}</Text>
           </View>
           {shop.open_now != null && (
             <View style={[styles.badge, { backgroundColor: shop.open_now ? colors.brandTertiary : colors.surfaceTertiary }]}>
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: "800", color: colors.onSurface, flex: 1, lineHeight: 20 },
   addr: { fontSize: 13, color: colors.muted, marginTop: 2 },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.sm, gap: spacing.xs },
-  tag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, flexShrink: 0 },
+  tag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, flexShrink: 1 },
   tagText: { fontSize: 11, fontWeight: "800" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 0, marginTop: 1 },
   rating: { fontSize: 14, fontWeight: "800", color: colors.onSurface },

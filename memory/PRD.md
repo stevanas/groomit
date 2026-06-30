@@ -1,5 +1,12 @@
 # GR-oom It (formerly PawFind) — Product Requirements Document
 
+## Update 2026-06-30 (live data + filters)
+- **Google Places API key added** → app now serves LIVE data (real shops, photos, ratings, Greek opening hours, Google reviews) + typed-location search via Geocoding.
+- Fixed photo proxy route ordering (`/places/photo` was shadowed by `/places/{id}`); photos now stream correctly with redirect-following.
+- Browse filters: **Open (now / specific day)** dropdown + **Open until [time]** + **Sort (Recommended / Distance / Rating)** with per-card distance (km). Open/closed badge restyled (icon + label, no clipping).
+- Find type options clarified: Groomer · Pet Shop · Both · Either. Selecting Groomer/Shop also surfaces "Both" stores. Full shop names (no truncation). "φροντίδα" added to Find subtitle.
+- NOTE: day/"open until" filters use schedule data (full on seed; live nearby returns only open_now, so those advanced filters keep shops with unknown hours rather than hiding them).
+
 ## Update 2026-06-30 (rework)
 - Renamed app to **GR-oom It** (Greek + grooming). Display font: Comfortaa (Greek-capable).
 - **Greek is the default language**, English selectable in Profile (i18n in `src/i18n.tsx`, persisted on device).

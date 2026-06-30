@@ -33,10 +33,14 @@ export default function BrowseScreen() {
 
   const [category, setCategory] = useState(params.category || "all");
   const [query, setQuery] = useState("");
-  const [openNowOnly, setOpenNowOnly] = useState(false);
+  const [openWhen, setOpenWhen] = useState<"any" | "now" | number>("any");
+  const [openUntil, setOpenUntil] = useState<string | null>(null);
+  const [openSheet, setOpenSheet] = useState<null | "when" | "until">(null);
   const [sort, setSort] = useState<"recommended" | "distance" | "rating">("recommended");
   const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+
+  const todayIdx = (new Date().getDay() + 6) % 7;
 
   // Keep filters in sync when arriving from the Find form with new params.
   useEffect(() => {
@@ -54,11 +58,35 @@ export default function BrowseScreen() {
     const q = query.trim().toLowerCase();
     let res = shops.map((s) => ({ ...s, distanceKm: distanceKm(region, s.latitude, s.longitude) }));
     if (q) res = res.filter((s) => s.name.toLowerCase().includes(q) || (s.address || "").toLowerCase().includes(q));
-    if (openNowOnly) res = res.filter((s) => s.open_now === true);
+    if (openWhen === "now") res = res.filter((s) => s.open_now === true);
+    else if (typeof openWhen === "number") res = res.filter((s) => !s.schedule || (s.schedule[openWhen] && !s.schedule[openWhen].closed));
+    if (openUntil) {
+      const refDay = typeof openWhen === "number" ? openWhen : todayIdx;
+      res = res.filter((s) => {
+        if (!s.schedule) return true;
+        const d = s.schedule[refDay];
+        return d && !d.closed && d.close >= openUntil;
+      });
+    }
     if (sort === "rating") res = [...res].sort((a, b) => (b.rating || 0) - (a.rating || 0));
     else if (sort === "distance") res = [...res].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
     return res;
-  }, [shops, region, query, openNowOnly, sort]);
+  }, [shops, region, query, openWhen, openUntil, sort, todayIdx]);
+
+  const openWhenLabel = () =>
+    openWhen === "now" ? t("filter.openNow") : openWhen === "any" ? t("filter.open") : t(`day.${openWhen}`);
+
+  const whenOptions: { value: "any" | "now" | number; label: string }[] = [
+    { value: "now", label: t("filter.openNow") },
+    { value: "any", label: t("filter.any") },
+    ...[0, 1, 2, 3, 4, 5, 6].map((d) => ({ value: d, label: t(`day.${d}`) })),
+  ];
+  const untilOptions: { value: string | null; label: string }[] = [
+    { value: null, label: t("filter.any") },
+    { value: "18:00", label: "18:00" },
+    { value: "20:00", label: "20:00" },
+    { value: "22:00", label: "22:00" },
+  ];
 
   const go = (s: any) => router.push(`/shop/${s.id}`);
 
@@ -94,21 +122,64 @@ export default function BrowseScreen() {
 
       <CategoryChips value={category} onChange={setCategory} />
 
-      <View style={styles.filterRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
+        contentContainerStyle={styles.filterRow}
+        keyboardShouldPersistTaps="handled"
+      >
         <Pressable
-          style={[styles.filterChip, openNowOnly && styles.filterChipActive]}
-          onPress={() => setOpenNowOnly((v) => !v)}
-          testID="filter-open-now"
+          style={[styles.filterChip, openWhen !== "any" && styles.filterChipActive]}
+          onPress={() => setOpenSheet("when")}
+          testID="filter-open"
         >
-          <Ionicons name="time" size={14} color={openNowOnly ? colors.onBrand : colors.success} />
-          <Text style={[styles.filterText, openNowOnly && styles.filterTextActive]}>{t("filter.openNow")}</Text>
+          <Ionicons name="time" size={14} color={openWhen !== "any" ? colors.onBrand : colors.success} />
+          <Text style={[styles.filterText, openWhen !== "any" && styles.filterTextActive]}>{openWhenLabel()}</Text>
+          <Ionicons name="chevron-down" size={13} color={openWhen !== "any" ? colors.onBrand : colors.success} />
+        </Pressable>
+
+        <Pressable
+          style={[styles.filterChip, !!openUntil && styles.filterChipActive]}
+          onPress={() => setOpenSheet("until")}
+          testID="filter-until"
+        >
+          <Ionicons name="hourglass-outline" size={14} color={openUntil ? colors.onBrand : colors.success} />
+          <Text style={[styles.filterText, !!openUntil && styles.filterTextActive]}>
+            {openUntil ? `${t("filter.until")} ${openUntil}` : t("filter.until")}
+          </Text>
+          <Ionicons name="chevron-down" size={13} color={openUntil ? colors.onBrand : colors.success} />
         </Pressable>
 
         <Pressable style={styles.sortChip} onPress={() => setSortOpen(true)} testID="sort-button">
           <Ionicons name="swap-vertical" size={14} color={colors.onSurfaceTertiary} />
           <Text style={styles.sortText}>{t(`sort.${sort}`)}</Text>
         </Pressable>
-      </View>
+      </ScrollView>
+
+      <Modal visible={openSheet !== null} transparent animationType="fade" onRequestClose={() => setOpenSheet(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setOpenSheet(null)}>
+          <Pressable style={styles.sortSheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sortTitle}>{openSheet === "until" ? t("filter.until") : t("filter.open")}</Text>
+            <ScrollView>
+              {openSheet === "when" &&
+                whenOptions.map((o) => (
+                  <Pressable key={String(o.value)} style={styles.sortRow} onPress={() => { setOpenWhen(o.value); setOpenSheet(null); }} testID={`when-opt-${o.value}`}>
+                    <Text style={[styles.sortRowText, openWhen === o.value && styles.sortRowActive]}>{o.label}</Text>
+                    {openWhen === o.value && <Ionicons name="checkmark" size={20} color={colors.brand} />}
+                  </Pressable>
+                ))}
+              {openSheet === "until" &&
+                untilOptions.map((o) => (
+                  <Pressable key={String(o.value)} style={styles.sortRow} onPress={() => { setOpenUntil(o.value); setOpenSheet(null); }} testID={`until-opt-${o.value ?? "any"}`}>
+                    <Text style={[styles.sortRowText, openUntil === o.value && styles.sortRowActive]}>{o.label}</Text>
+                    {openUntil === o.value && <Ionicons name="checkmark" size={20} color={colors.brand} />}
+                  </Pressable>
+                ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={sortOpen} transparent animationType="fade" onRequestClose={() => setSortOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setSortOpen(false)}>
@@ -175,12 +246,13 @@ const styles = StyleSheet.create({
   searchBar: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, borderRadius: radius.pill, paddingHorizontal: spacing.lg, height: 50, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, fontSize: 15, color: colors.onSurface },
   toggle: { width: 50, height: 50, borderRadius: radius.md, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
-  filterRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.xs, alignItems: "center" },
-  filterChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 34, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
+  filterScroll: { flexGrow: 0, marginTop: spacing.xs },
+  filterRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, alignItems: "center" },
+  filterChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 34, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, flexShrink: 0 },
   filterChipActive: { backgroundColor: colors.success, borderColor: colors.success },
   filterText: { fontSize: 13, fontWeight: "800", color: colors.success },
   filterTextActive: { color: colors.onBrand },
-  sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 34, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, marginLeft: "auto" },
+  sortChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 34, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, flexShrink: 0 },
   sortText: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   sortSheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, paddingVertical: spacing.md, paddingTop: spacing.lg },

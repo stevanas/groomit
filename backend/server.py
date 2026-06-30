@@ -147,7 +147,7 @@ def _classify(types, name):
 
 def _seed_card(s):
     return {k: s[k] for k in ["id", "name", "address", "latitude", "longitude", "category",
-                              "rating", "user_rating_count", "image_url", "open_now"]}
+                              "rating", "user_rating_count", "image_url", "open_now"]} | {"schedule": s["schedule"]}
 
 
 async def _google_text_search(query, lat, lng, radius, lang):
@@ -233,6 +233,20 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
     return {"results": results, "source": "seed"}
 
 
+@api_router.get("/places/photo")
+async def place_photo(name: str, max_width: int = 800):
+    if not GOOGLE_MAPS_API_KEY:
+        raise HTTPException(status_code=404, detail="No provider")
+    url = f"https://places.googleapis.com/v1/{name}/media"
+    params = {"key": GOOGLE_MAPS_API_KEY, "maxWidthPx": max_width}
+    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as hc:
+        resp = await hc.get(url, params=params)
+    if resp.status_code != 200:
+        logger.error("Photo error %s: %s", resp.status_code, resp.text[:200])
+        raise HTTPException(status_code=502, detail="Photo error")
+    return StreamingResponse(iter([resp.content]), media_type=resp.headers.get("Content-Type", "image/jpeg"))
+
+
 @api_router.get("/places/{place_id}")
 async def place_details(place_id: str, lang: str = "el"):
     if place_id.startswith("seed_"):
@@ -277,19 +291,6 @@ async def place_details(place_id: str, lang: str = "el"):
             ],
         }
     raise HTTPException(status_code=404, detail="Not found")
-
-
-@api_router.get("/places/photo")
-async def place_photo(name: str, max_width: int = 800):
-    if not GOOGLE_MAPS_API_KEY:
-        raise HTTPException(status_code=404, detail="No provider")
-    url = f"https://places.googleapis.com/v1/{name}/media"
-    params = {"key": GOOGLE_MAPS_API_KEY, "maxWidthPx": max_width}
-    async with httpx.AsyncClient(timeout=20.0) as hc:
-        resp = await hc.get(url, params=params)
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Photo error")
-    return StreamingResponse(iter([resp.content]), media_type=resp.headers.get("Content-Type", "image/jpeg"))
 
 
 # ----------------------------- Favorites (server, optional auth) -----------------------------
