@@ -10,7 +10,7 @@ const el: Dict = {
   tagline: "Βρες το ιδανικό κομμωτήριο & pet shop",
 
   "tab.find": "Αναζήτηση",
-  "tab.browse": "Κατάστημα",
+  "tab.browse": "Καταστήματα",
   "tab.saved": "Αποθηκευμένα",
   "tab.profile": "Προφίλ",
 
