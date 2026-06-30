@@ -1,36 +1,33 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from "react-native";
+import { Text, StyleSheet, Pressable, Modal, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius } from "@/src/theme";
 import { useI18n } from "@/src/i18n";
 
-const TIMES: string[] = [];
-for (let h = 0; h < 24; h++) {
-  for (let m = 0; m < 60; m += 15) {
-    TIMES.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-  }
-}
-
 export default function TimePicker({
   value,
   onChange,
+  options,
+  has24h,
   testID,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
+  options: string[];
+  has24h?: boolean;
   testID?: string;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const active = !!value;
 
+  const label = value === "24h" ? t("filter.open24") : value ? `${t("filter.until")} ${value}` : t("filter.until");
+
   return (
     <>
       <Pressable style={[styles.chip, active && styles.chipActive]} onPress={() => setOpen(true)} testID={testID}>
         <Ionicons name="hourglass-outline" size={15} color={active ? colors.onAccent : colors.accent} />
-        <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
-          {value ? `${t("filter.until")} ${value}` : t("filter.until")}
-        </Text>
+        <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>{label}</Text>
         <Ionicons name="chevron-down" size={13} color={active ? colors.onAccent : colors.accent} />
       </Pressable>
 
@@ -43,7 +40,13 @@ export default function TimePicker({
                 <Text style={[styles.rowText, !value && styles.rowActive]}>{t("filter.any")}</Text>
                 {!value && <Ionicons name="checkmark" size={20} color={colors.brand} />}
               </Pressable>
-              {TIMES.map((tm) => (
+              {has24h && (
+                <Pressable style={styles.row} onPress={() => { onChange("24h"); setOpen(false); }} testID="time-24h">
+                  <Text style={[styles.rowText, value === "24h" && styles.rowActive]}>{t("filter.open24")}</Text>
+                  {value === "24h" && <Ionicons name="checkmark" size={20} color={colors.brand} />}
+                </Pressable>
+              )}
+              {options.map((tm) => (
                 <Pressable key={tm} style={styles.row} onPress={() => { onChange(tm); setOpen(false); }} testID={`time-${tm}`}>
                   <Text style={[styles.rowText, value === tm && styles.rowActive]}>{tm}</Text>
                   {value === tm && <Ionicons name="checkmark" size={20} color={colors.brand} />}
@@ -58,7 +61,7 @@ export default function TimePicker({
 }
 
 const styles = StyleSheet.create({
-  chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
+  chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: spacing.md, height: 36, borderRadius: radius.pill, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, flexShrink: 0 },
   chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   chipText: { fontSize: 13, fontWeight: "800", color: colors.accent },
   chipTextActive: { color: colors.onAccent },

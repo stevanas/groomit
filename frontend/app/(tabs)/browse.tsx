@@ -59,7 +59,12 @@ export default function BrowseScreen() {
     let res = shops.map((s) => ({ ...s, distanceKm: distanceKm(region, s.latitude, s.longitude) }));
     if (q) res = res.filter((s) => s.name.toLowerCase().includes(q) || (s.address || "").toLowerCase().includes(q));
     if (openNowOnly) res = res.filter((s) => s.open_now === true);
-    if (openUntil) {
+    if (openUntil === "24h") {
+      res = res.filter((s) => {
+        const d = s.schedule?.[todayIdx];
+        return d && !d.closed && d.open === "00:00" && d.close === "23:59";
+      });
+    } else if (openUntil) {
       res = res.filter((s) => {
         if (!s.schedule) return true; // hours unknown -> keep visible
         const d = s.schedule[todayIdx];
@@ -70,6 +75,24 @@ export default function BrowseScreen() {
     else if (sort === "distance") res = [...res].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
     return res;
   }, [shops, region, query, openNowOnly, openUntil, sort, todayIdx]);
+
+  // Build "open until" options from real data: hourly close times today (sensible range only).
+  const untilOptions = useMemo(() => {
+    const set = new Set<string>();
+    shops.forEach((s) => {
+      const d = s.schedule?.[todayIdx];
+      if (!d || d.closed || !d.close || d.close === "23:59") return;
+      const [h, m] = d.close.split(":").map(Number);
+      const hh = m > 0 ? h + 1 : h; // round up to next hour
+      if (hh >= 12 && hh <= 24) set.add(`${String(hh).padStart(2, "0")}:00`);
+    });
+    return Array.from(set).sort();
+  }, [shops, todayIdx]);
+
+  const has24h = useMemo(
+    () => shops.some((s) => { const d = s.schedule?.[todayIdx]; return d && d.open === "00:00" && d.close === "23:59"; }),
+    [shops, todayIdx],
+  );
 
   const hasActiveFilters =
     category !== "all" || query.trim() !== "" || openNowOnly || openUntil !== null || sort !== "recommended";
@@ -126,12 +149,7 @@ export default function BrowseScreen() {
           <Text style={[styles.filterText, openNowOnly && styles.filterTextActive]}>{t("filter.openNow")}</Text>
         </Pressable>
 
-        {hasActiveFilters && (
-          <Pressable style={styles.clearBtn} onPress={clearFilters} testID="clear-filters">
-            <Ionicons name="close-circle" size={16} color={colors.muted} />
-            <Text style={styles.clearText}>{t("filter.clear")}</Text>
-          </Pressable>
-        )}
+        <TimePicker value={openUntil} onChange={setOpenUntil} options={untilOptions} has24h={has24h} testID="filter-until" />
       </View>
 
       <View style={styles.filterRow}>
@@ -141,7 +159,12 @@ export default function BrowseScreen() {
           <Ionicons name="chevron-down" size={13} color={colors.muted} />
         </Pressable>
 
-        <TimePicker value={openUntil} onChange={setOpenUntil} testID="filter-until" />
+        {hasActiveFilters && (
+          <Pressable style={styles.clearBtn} onPress={clearFilters} testID="clear-filters">
+            <Ionicons name="close-circle" size={16} color={colors.muted} />
+            <Text style={styles.clearText}>{t("filter.clear")}</Text>
+          </Pressable>
+        )}
       </View>
 
       <Modal visible={sortOpen} transparent animationType="fade" onRequestClose={() => setSortOpen(false)}>
