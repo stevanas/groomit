@@ -28,6 +28,16 @@ export const fonts = {
   display: "Comfortaa",
 };
 
+// Per-category colors (used on labels, list tags, map pins, detail badge).
+// Distinct, readable, and intentionally NOT the brand orange.
+export const categoryColor: Record<string, { main: string; on: string; soft: string; onSoft: string }> = {
+  groomer: { main: "#2E8B83", on: "#FFFFFF", soft: "#DCEEEC", onSoft: "#1F5F59" },
+  shop: { main: "#3D6FB4", on: "#FFFFFF", soft: "#DEE8F5", onSoft: "#264C7E" },
+  both: { main: "#B5527E", on: "#FFFFFF", soft: "#F6DDE8", onSoft: "#7E2E50" },
+};
+
+export const getCat = (c?: string) => categoryColor[c || "shop"] || categoryColor.shop;
+
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 };
 export const radius = { sm: 8, md: 16, lg: 24, pill: 999 };
 

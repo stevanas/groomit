@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
-import { colors } from "@/src/theme";
+import { getCat } from "@/src/theme";
 
 export default function MapShops({
   shops,
@@ -38,8 +38,8 @@ export default function MapShops({
               coordinate={{ latitude: s.latitude, longitude: s.longitude }}
               onPress={() => onSelect(s)}
             >
-              <View style={[styles.pin, { backgroundColor: s.category === "groomer" ? colors.brand : colors.warning }]}>
-                <Text style={styles.pinText}>{s.category === "groomer" ? "✂" : "🏪"}</Text>
+              <View style={[styles.pin, { backgroundColor: getCat(s.category).main }]}>
+                <Text style={styles.pinText}>{s.category === "groomer" ? "✂" : s.category === "both" ? "★" : "🏪"}</Text>
               </View>
             </Marker>
           ))}

@@ -2,13 +2,18 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, shadow } from "@/src/theme";
+import { colors, spacing, radius, shadow, getCat } from "@/src/theme";
 import { photoUrl } from "@/src/api";
 import { useI18n } from "@/src/i18n";
+
+const catLabelKey = (c?: string) =>
+  c === "groomer" ? "common.groomer" : c === "both" ? "common.both" : "common.shop";
+const catIcon = (c?: string) => (c === "groomer" ? "cut" : c === "both" ? "ribbon" : "storefront");
 
 export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => void }) {
   const { t } = useI18n();
   const uri = photoUrl(shop);
+  const cat = getCat(shop.category);
   return (
     <Pressable style={styles.card} onPress={onPress} testID={`shop-card-${shop.id}`}>
       <Image source={{ uri: uri || undefined }} style={styles.img} contentFit="cover" transition={200} />
@@ -17,7 +22,7 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
           <Text style={styles.name} numberOfLines={1}>{shop.name}</Text>
           {shop.open_now != null && (
             <View style={[styles.badge, { backgroundColor: shop.open_now ? colors.brandTertiary : colors.surfaceTertiary }]}>
-              <Text style={[styles.badgeText, { color: shop.open_now ? colors.onBrandTertiary : colors.muted }]}>
+              <Text style={[styles.badgeText, { color: shop.open_now ? colors.success : colors.muted }]}>
                 {shop.open_now ? t("common.open") : t("common.closed")}
               </Text>
             </View>
@@ -25,9 +30,9 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
         </View>
         <Text style={styles.addr} numberOfLines={1}>{shop.address}</Text>
         <View style={styles.metaRow}>
-          <View style={styles.tag}>
-            <Ionicons name={shop.category === "groomer" ? "cut" : "storefront"} size={12} color={colors.onBrandSecondary} />
-            <Text style={styles.tagText}>{shop.category === "groomer" ? t("common.groomer") : t("common.shop")}</Text>
+          <View style={[styles.tag, { backgroundColor: cat.soft }]}>
+            <Ionicons name={catIcon(shop.category)} size={12} color={cat.onSoft} />
+            <Text style={[styles.tagText, { color: cat.onSoft }]} numberOfLines={1}>{t(catLabelKey(shop.category))}</Text>
           </View>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color={colors.warning} />
@@ -47,12 +52,12 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   name: { fontSize: 16, fontWeight: "800", color: colors.onSurface, flex: 1 },
   addr: { fontSize: 13, color: colors.muted, marginTop: 2 },
-  metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.sm },
-  tag: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.brandSecondary, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill },
-  tagText: { fontSize: 11, fontWeight: "700", color: colors.onBrandSecondary },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: 3 },
+  metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.sm, gap: spacing.sm },
+  tag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, flexShrink: 1 },
+  tagText: { fontSize: 11, fontWeight: "800" },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 0 },
   rating: { fontSize: 14, fontWeight: "800", color: colors.onSurface },
   count: { fontSize: 12, color: colors.muted },
-  badge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill },
-  badgeText: { fontSize: 11, fontWeight: "700" },
+  badge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill, flexShrink: 0 },
+  badgeText: { fontSize: 11, fontWeight: "800" },
 });

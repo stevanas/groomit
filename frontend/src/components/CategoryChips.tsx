@@ -7,6 +7,7 @@ const KEYS = [
   { key: "all", label: "cat.all" },
   { key: "groomer", label: "cat.groomer" },
   { key: "shop", label: "cat.shop" },
+  { key: "both", label: "cat.both" },
 ] as const;
 
 export default function CategoryChips({

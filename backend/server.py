@@ -130,10 +130,10 @@ SAMPLE_REVIEWS_SHOP = [
 
 SEED_SHOPS = [
     {"id": "seed_1", "name": "Happy Tails Κομμωτήριο Κατοικιδίων", "address": "Ερμού 25, Αθήνα", "latitude": 37.9772, "longitude": 23.7290, "category": "groomer", "rating": 4.8, "user_rating_count": 214, "image_url": "https://images.unsplash.com/photo-1719464454959-9cf304ef4774?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210001", "website": "https://example.gr", "schedule": _sched(closed_days=(6,)), "reviews": SAMPLE_REVIEWS_GROOMER},
-    {"id": "seed_2", "name": "Pet City Κολωνάκι", "address": "Σκουφά 52, Κολωνάκι", "latitude": 37.9790, "longitude": 23.7400, "category": "shop", "rating": 4.6, "user_rating_count": 132, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210002", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
+    {"id": "seed_2", "name": "Pet City Κολωνάκι", "address": "Σκουφά 52, Κολωνάκι", "latitude": 37.9790, "longitude": 23.7400, "category": "both", "rating": 4.6, "user_rating_count": 132, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210002", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
     {"id": "seed_3", "name": "Pampered Paws Spa", "address": "Πατησίων 110, Αθήνα", "latitude": 37.9930, "longitude": 23.7330, "category": "groomer", "rating": 4.9, "user_rating_count": 301, "image_url": "https://images.unsplash.com/photo-1611173622933-91942d394b04?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": False, "phone": "+30 210 3210003", "website": "https://example.gr", "schedule": _sched(closed_days=(0, 6)), "reviews": SAMPLE_REVIEWS_GROOMER},
     {"id": "seed_4", "name": "Ζωοφιλία Pet Shop", "address": "Λ. Κηφισίας 18, Αμπελόκηποι", "latitude": 37.9870, "longitude": 23.7560, "category": "shop", "rating": 4.3, "user_rating_count": 89, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210004", "website": "https://example.gr", "schedule": _sched(closed_days=(6,)), "reviews": SAMPLE_REVIEWS_SHOP},
-    {"id": "seed_5", "name": "Furry Friends Boutique", "address": "Αδριανού 8, Μοναστηράκι", "latitude": 37.9760, "longitude": 23.7250, "category": "shop", "rating": 4.5, "user_rating_count": 156, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210005", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
+    {"id": "seed_5", "name": "Furry Friends Boutique", "address": "Αδριανού 8, Μοναστηράκι", "latitude": 37.9760, "longitude": 23.7250, "category": "both", "rating": 4.5, "user_rating_count": 156, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210005", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
     {"id": "seed_6", "name": "Pawsh Grooming Studio", "address": "Πλ. Βικτωρίας 3, Αθήνα", "latitude": 37.9930, "longitude": 23.7300, "category": "groomer", "rating": 4.7, "user_rating_count": 178, "image_url": "https://images.unsplash.com/photo-1719464454959-9cf304ef4774?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210006", "website": "https://example.gr", "schedule": _sched(closed_days=(0,)), "reviews": SAMPLE_REVIEWS_GROOMER},
 ]
 
@@ -199,12 +199,13 @@ async def geocode(q: str, lang: str = "el"):
 
 @api_router.get("/places/nearby")
 async def places_nearby(lat: float, lng: float, radius: int = 8000,
-                        category: Literal["all", "shop", "groomer"] = "all",
+                        category: Literal["all", "shop", "groomer", "both"] = "all",
                         day: int = -1, lang: str = "el"):
     if GOOGLE_MAPS_API_KEY:
-        query = {"groomer": "pet groomer", "shop": "pet store"}.get(category, "pet store and pet groomer")
+        query = {"groomer": "pet groomer", "shop": "pet store",
+                 "both": "pet store and grooming"}.get(category, "pet store and pet groomer")
         results = await _google_text_search(query, lat, lng, radius, lang)
-        if category != "all":
+        if category in ("shop", "groomer"):
             results = [r for r in results if r["category"] == category]
         return {"results": results, "source": "google"}
     # Seed fallback

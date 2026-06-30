@@ -58,6 +58,7 @@ export default function FindScreen() {
     { value: "all", label: t("type.all") },
     { value: "groomer", label: t("type.groomer") },
     { value: "shop", label: t("type.shop") },
+    { value: "both", label: t("type.both") },
   ];
   const dayOptions: Option[] = [
     { value: "any", label: t("day.any") },
@@ -86,7 +87,7 @@ export default function FindScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" testID="find-screen">
         <View style={styles.brandRow}>
           <View style={styles.logo}><Ionicons name="paw" size={22} color={colors.onBrand} /></View>
-          <Text style={styles.brand}>{t("appName")}</Text>
+          <Text style={styles.brand} numberOfLines={1}>{t("appName")}</Text>
         </View>
 
         <Text style={styles.heading}>{t("find.heading")}</Text>

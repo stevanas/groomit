@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet, photoUrl } from "@/src/api";
 import { isFavorite, toggleFavorite } from "@/src/favorites";
 import { useI18n } from "@/src/i18n";
-import { colors, spacing, radius, shadow, fonts } from "@/src/theme";
+import { colors, spacing, radius, shadow, fonts, getCat } from "@/src/theme";
 
 function Stars({ value, size = 14 }: { value: number; size?: number }) {
   return (
@@ -92,14 +92,6 @@ export default function ShopDetail() {
         <View style={styles.hero}>
           <Image source={{ uri: heroUri || undefined }} style={StyleSheet.absoluteFill} contentFit="cover" />
           <LinearGradient colors={["rgba(42,33,28,0.45)", "transparent", "rgba(42,33,28,0.55)"]} style={StyleSheet.absoluteFill} />
-          <View style={[styles.heroTop, { paddingTop: insets.top + spacing.sm }]}>
-            <Pressable style={styles.iconBtn} onPress={() => router.back()} testID="back-button">
-              <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
-            </Pressable>
-            <Pressable style={styles.iconBtn} onPress={toggleFav} testID="favorite-toggle">
-              <Ionicons name={fav ? "heart" : "heart-outline"} size={24} color={fav ? colors.error : colors.onSurface} />
-            </Pressable>
-          </View>
         </View>
 
         <View style={styles.sheet}>
@@ -108,8 +100,8 @@ export default function ShopDetail() {
               <Text style={styles.name}>{shop.name}</Text>
               <Text style={styles.addr}>{shop.address}</Text>
             </View>
-            <View style={[styles.catBadge, { backgroundColor: shop.category === "groomer" ? colors.brand : colors.accent }]}>
-              <Ionicons name={shop.category === "groomer" ? "cut" : "storefront"} size={16} color="#fff" />
+            <View style={[styles.catBadge, { backgroundColor: getCat(shop.category).main }]}>
+              <Ionicons name={shop.category === "groomer" ? "cut" : shop.category === "both" ? "ribbon" : "storefront"} size={16} color="#fff" />
             </View>
           </View>
 
@@ -181,6 +173,16 @@ export default function ShopDetail() {
         </View>
       </ScrollView>
 
+      {/* Floating nav buttons — visible at any scroll level */}
+      <View style={[styles.floatNav, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
+        <Pressable style={styles.iconBtn} onPress={() => router.back()} testID="back-button">
+          <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
+        </Pressable>
+        <Pressable style={styles.iconBtn} onPress={toggleFav} testID="favorite-toggle">
+          <Ionicons name={fav ? "heart" : "heart-outline"} size={24} color={fav ? colors.error : colors.onSurface} />
+        </Pressable>
+      </View>
+
       {/* Sticky CTA */}
       <View style={[styles.ctaBar, { paddingBottom: insets.bottom + spacing.sm }]}>
         <Pressable
@@ -214,8 +216,8 @@ const styles = StyleSheet.create({
   retryBtn: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: radius.pill },
   retryText: { color: colors.onBrand, fontWeight: "800" },
   hero: { height: 300 },
-  heroTop: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.lg },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center", ...shadow.card },
+  floatNav: { position: "absolute", left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.lg },
+  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center", ...shadow.float },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, marginTop: -24, padding: spacing.lg, gap: spacing.sm },
   titleRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
   name: { fontSize: 24, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display },

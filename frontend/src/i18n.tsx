@@ -26,10 +26,12 @@ const el: Dict = {
   "type.all": "Κομμωτήριο ή Pet Shop",
   "type.groomer": "Κομμωτήριο",
   "type.shop": "Pet Shop",
+  "type.both": "Κομμωτήριο & Pet Shop",
 
   "cat.all": "Όλα",
   "cat.groomer": "Κομμωτήρια",
   "cat.shop": "Pet Shops",
+  "cat.both": "Και τα δύο",
 
   "day.today": "Σήμερα",
   "day.any": "Οποιαδήποτε μέρα",
@@ -50,6 +52,7 @@ const el: Dict = {
   "common.closed": "Κλειστό",
   "common.groomer": "Κομμωτήριο",
   "common.shop": "Pet Shop",
+  "common.both": "Κομμ. & Shop",
   "common.retry": "Δοκίμασε ξανά",
   "common.loading": "Φόρτωση…",
   "common.noResults": "Δεν βρέθηκαν καταστήματα. Δοκίμασε άλλο φίλτρο!",
@@ -75,7 +78,7 @@ const el: Dict = {
   "saved.empty": "Δεν έχεις αποθηκεύσει μέρη. Πάτα την καρδιά σε ένα κατάστημα για να το σώσεις.",
 
   "profile.title": "Προφίλ",
-  "profile.welcome": "Καλώς ήρθες στο GR-oom It",
+  "profile.welcome": "Καλώς ήρθες στο",
   "profile.guest": "Περιήγηση ως επισκέπτης",
   "profile.savedNote": "Τα αποθηκευμένα σου κρατούνται σε αυτή τη συσκευή",
   "profile.language": "Γλώσσα",
@@ -103,10 +106,12 @@ const en: Dict = {
   "type.all": "Groomer or Pet Shop",
   "type.groomer": "Groomer",
   "type.shop": "Pet Shop",
+  "type.both": "Groomer & Pet Shop",
 
   "cat.all": "All",
   "cat.groomer": "Groomers",
   "cat.shop": "Pet Shops",
+  "cat.both": "Both",
 
   "day.today": "Today",
   "day.any": "Any day",
@@ -127,6 +132,7 @@ const en: Dict = {
   "common.closed": "Closed",
   "common.groomer": "Groomer",
   "common.shop": "Pet Shop",
+  "common.both": "Groomer & Shop",
   "common.retry": "Retry",
   "common.loading": "Loading…",
   "common.noResults": "No shops found. Try another filter!",
@@ -152,7 +158,7 @@ const en: Dict = {
   "saved.empty": "No saved places yet. Tap the heart on a shop to save it.",
 
   "profile.title": "Profile",
-  "profile.welcome": "Welcome to GR-oom It",
+  "profile.welcome": "Welcome to",
   "profile.guest": "Browsing as guest",
   "profile.savedNote": "Your saved spots are kept on this device",
   "profile.language": "Language",
