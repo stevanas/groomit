@@ -16,8 +16,6 @@ expo-env.d.ts
 ios/
 android/
 
-# local tooling / scripts not needed for the app build
-scripts/
 
 # logs & debug
 *.log
