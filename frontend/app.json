@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PawFind",
+    "name": "GR-oom It",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,11 +10,13 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.groomit.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Find pet shops and groomers near you"
       }
     },
     "android": {
+      "package": "com.groomit.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#E2683C"

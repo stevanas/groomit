@@ -102,8 +102,8 @@ export default function FindScreen() {
           <LocationAutocomplete
             value={location}
             onChangeText={setLocation}
-            onSelect={(desc) => router.push({ pathname: "/(tabs)/browse", params: { category: type, location: desc, day: String(whenToDay(when)) } })}
-            onUseMyLocation={() => router.push({ pathname: "/(tabs)/browse", params: { category: type, location: "", day: String(whenToDay(when)) } })}
+            onSelect={() => {}}
+            onUseMyLocation={() => setLocation("")}
             testID="location-input"
           />
 

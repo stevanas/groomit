@@ -34,7 +34,7 @@ export default function ProfileScreen() {
       <Text style={styles.title}>{t("profile.title")}</Text>
 
       <View style={styles.card}>
-        <View style={styles.logo}><Ionicons name="paw" size={32} color={colors.onBrand} /></View>
+        <Image source={require("../../assets/images/groomit-logo-circle.png")} style={styles.logo} contentFit="contain" />
         <Text style={styles.welcomeSmall}>{t("profile.welcome")}</Text>
         <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>{t("appName")}</Text>
         <Text style={styles.email}>{t("profile.guest")}</Text>
@@ -97,7 +97,7 @@ const makeStyles = (colors: ThemeColors) =>
   content: { padding: spacing.lg, paddingBottom: spacing.xxxl, flexGrow: 1 },
   title: { fontSize: 28, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginBottom: spacing.lg },
   card: { alignItems: "center", backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.xs, ...shadow.card },
-  logo: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center", marginBottom: spacing.sm },
+  logo: { width: 72, height: 72, marginBottom: spacing.sm },
   welcomeSmall: { fontSize: 14, color: colors.muted },
   name: { fontSize: 24, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, textAlign: "center" },
   email: { fontSize: 14, color: colors.muted },
