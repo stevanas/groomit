@@ -17,7 +17,12 @@
     },
     "android": {
       "package": "com.groomit.app",
-      "versionCode": 120,
+      "versionCode": 121,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDbOvjjXogHbtLoD6BgRcsE7UW72mzVd-w"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#E2683C"
