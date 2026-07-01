@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.groomit.app",
+      "versionCode": 120,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#E2683C"
