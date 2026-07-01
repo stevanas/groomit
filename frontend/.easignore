@@ -1,0 +1,31 @@
+# Files/dirs to exclude from the EAS build upload.
+# Used as a fallback when git (.gitignore) filtering is unavailable in the build runner.
+
+# dependencies (reinstalled during the build)
+node_modules/
+
+# Expo / Metro caches and generated output
+.expo/
+.metro-cache/
+.metro-health-check*
+dist/
+web-build/
+expo-env.d.ts
+
+# generated native folders (managed workflow prebuilds these)
+ios/
+android/
+
+# local tooling / scripts not needed for the app build
+scripts/
+
+# logs & debug
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS / misc
+.DS_Store
+*.tsbuildinfo
+app-example/
