@@ -1,7 +1,6 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { LogBox } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -14,7 +13,6 @@ import { PremiumProvider } from "@/src/premium";
 import { ThemeProvider, useTheme } from "@/src/theme-context";
 import ThemePrompt from "@/src/components/ThemePrompt";
 
-LogBox.ignoreAllLogs(true);
 SplashScreen.preventAutoHideAsync();
 
 function ThemedApp() {
