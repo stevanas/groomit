@@ -74,9 +74,11 @@ export default function FindScreen() {
   ];
 
   const search = () => {
+    // "Near me" is a display label, not a real place query — send empty so browse uses GPS.
+    const loc = location.trim() === t("find.useMyLocation") ? "" : location.trim();
     router.push({
       pathname: "/(tabs)/browse",
-      params: { category: type, location: location.trim(), day: String(whenToDay(when)) },
+      params: { category: type, location: loc, day: String(whenToDay(when)) },
     });
   };
 
@@ -103,7 +105,7 @@ export default function FindScreen() {
             value={location}
             onChangeText={setLocation}
             onSelect={() => {}}
-            onUseMyLocation={() => setLocation("")}
+            onUseMyLocation={() => {}}
             testID="location-input"
           />
 

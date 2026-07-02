@@ -6,10 +6,12 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiGet, photoUrl } from "@/src/api";
 import { isFavorite, toggleFavorite } from "@/src/favorites";
 import { useI18n } from "@/src/i18n";
+import { distanceKm, formatDistance } from "@/src/utils/distance";
 import StoreMapSection from "@/src/components/StoreMapSection";
 import { spacing, radius, shadow, fonts, getCat, ThemeColors } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
@@ -42,6 +44,22 @@ export default function ShopDetail() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [userLoc, setUserLoc] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== "granted") return; // don't prompt here; only use if already granted
+        const pos =
+          (await Location.getLastKnownPositionAsync()) ||
+          (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+        if (pos) setUserLoc({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      } catch {
+        /* location unavailable — distance simply won't show */
+      }
+    })();
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +95,9 @@ export default function ShopDetail() {
   }
 
   const heroUri = photoUrl(shop) || (shop.photos?.[0] ? photoUrl({ photo_name: shop.photos[0] }) : null);
+  const distLabel = userLoc
+    ? formatDistance(distanceKm(userLoc, shop.latitude, shop.longitude), t("browse.km"), t("browse.m"))
+    : null;
   const galleryPhotos: string[] = (
     shop.photos && shop.photos.length
       ? shop.photos.map((n: string) => photoUrl({ photo_name: n })).filter(Boolean)
@@ -150,6 +171,12 @@ export default function ShopDetail() {
           <View style={styles.titleRow}>
             <Text style={styles.name}>{shop.name}</Text>
             <Text style={styles.addr}>{shop.address}</Text>
+            {distLabel && (
+              <View style={styles.distRow}>
+                <Ionicons name="navigate" size={14} color={colors.brand} />
+                <Text style={styles.distText}>{distLabel}</Text>
+              </View>
+            )}
             <View style={[styles.catPill, { backgroundColor: cat.soft }]}>
               <Ionicons name={catIconName as any} size={15} color={cat.onSoft} />
               <Text style={[styles.catPillText, { color: cat.onSoft }]}>{t(catLabelKey)}</Text>
@@ -348,6 +375,8 @@ const makeStyles = (colors: ThemeColors) =>
   titleRow: { alignItems: "flex-start", gap: spacing.xs },
   name: { fontSize: 24, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display },
   addr: { fontSize: 14, color: colors.muted, marginTop: 2 },
+  distRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: spacing.xs },
+  distText: { fontSize: 14, fontWeight: "800", color: colors.brand },
   catPill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, marginTop: spacing.xs },
   catPillText: { fontSize: 13, fontWeight: "800" },
   catBadge: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },

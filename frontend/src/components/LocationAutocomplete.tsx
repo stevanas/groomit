@@ -92,7 +92,17 @@ export default function LocationAutocomplete({
 
       {open && (
         <View style={styles.dropdown}>
-          <Pressable style={styles.row} onPress={() => { onChangeText(""); setOpen(false); onUseMyLocation(); }} testID="use-my-location">
+          <Pressable
+            style={styles.row}
+            onPress={() => {
+              justSelected.current = true;
+              onChangeText(t("find.useMyLocation"));
+              setSuggestions([]);
+              setOpen(false);
+              onUseMyLocation();
+            }}
+            testID="use-my-location"
+          >
             <Ionicons name="navigate" size={18} color={colors.brand} />
             <Text style={styles.rowMain}>{t("find.useMyLocation")}</Text>
           </Pressable>

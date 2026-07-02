@@ -6,6 +6,7 @@ import { spacing, radius, shadow, getCat, ThemeColors } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
 import { photoUrl } from "@/src/api";
 import { useI18n } from "@/src/i18n";
+import { formatDistance } from "@/src/utils/distance";
 
 const catLabelKey = (c?: string) =>
   c === "groomer" ? "common.groomer" : c === "both" ? "common.both" : "common.shop";
@@ -22,6 +23,7 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
   const today = shop.schedule?.[TODAY_IDX];
   const is24h = today && !today.closed && today.open === "00:00" && today.close === "23:59";
   const closesAt = today && !today.closed && today.close && !is24h ? today.close : null;
+  const distLabel = formatDistance(shop.distanceKm, t("browse.km"), t("browse.m"));
   return (
     <Pressable style={styles.card} onPress={onPress} testID={`shop-card-${shop.id}`}>
       <View>
@@ -44,14 +46,19 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
             {shop.user_rating_count ? <Text style={styles.count}>({shop.user_rating_count})</Text> : null}
           </View>
         </View>
-        <Text style={styles.addr} numberOfLines={1}>
-          {shop.address}
-          {shop.distanceKm != null ? `  ·  ${shop.distanceKm < 10 ? shop.distanceKm.toFixed(1) : Math.round(shop.distanceKm)} ${t("browse.km")}` : ""}
-        </Text>
+        <Text style={styles.addr} numberOfLines={1}>{shop.address}</Text>
         <View style={styles.metaRow}>
-          <View style={[styles.tag, { backgroundColor: cat.soft }]}>
-            <Ionicons name={catIcon(shop.category)} size={12} color={cat.onSoft} />
-            <Text style={[styles.tagText, { color: cat.onSoft }]}>{t(catLabelKey(shop.category))}</Text>
+          <View style={styles.metaLeft}>
+            <View style={[styles.tag, { backgroundColor: cat.soft }]}>
+              <Ionicons name={catIcon(shop.category)} size={12} color={cat.onSoft} />
+              <Text style={[styles.tagText, { color: cat.onSoft }]}>{t(catLabelKey(shop.category))}</Text>
+            </View>
+            {distLabel && (
+              <View style={styles.distChip}>
+                <Ionicons name="navigate" size={11} color={colors.muted} />
+                <Text style={styles.distText}>{distLabel}</Text>
+              </View>
+            )}
           </View>
           {shop.open_now != null && (
             <View style={[styles.badge, { backgroundColor: shop.open_now ? colors.brandTertiary : colors.surfaceTertiary }]}>
@@ -76,6 +83,9 @@ const makeStyles = (colors: ThemeColors) =>
   name: { fontSize: 16, fontWeight: "800", color: colors.onSurface, flex: 1, lineHeight: 20 },
   addr: { fontSize: 13, color: colors.muted, marginTop: 2 },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.sm, gap: spacing.xs },
+  metaLeft: { flexDirection: "row", alignItems: "center", gap: spacing.xs, flexShrink: 1 },
+  distChip: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 0 },
+  distText: { fontSize: 12, fontWeight: "700", color: colors.muted },
   closesPill: { position: "absolute", top: 6, left: 6, flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: colors.accent },
   closesText: { fontSize: 10, fontWeight: "800", color: colors.onAccent },
   tag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, flexShrink: 0 },
