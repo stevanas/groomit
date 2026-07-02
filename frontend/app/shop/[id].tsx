@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking,
+  View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Modal, FlatList, Dimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,6 +13,8 @@ import { useI18n } from "@/src/i18n";
 import StoreMapSection from "@/src/components/StoreMapSection";
 import { spacing, radius, shadow, fonts, getCat, ThemeColors } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 function Stars({ value, size = 14 }: { value: number; size?: number }) {
   const { colors } = useTheme();
@@ -37,6 +39,9 @@ export default function ShopDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [fav, setFav] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,6 +77,11 @@ export default function ShopDetail() {
   }
 
   const heroUri = photoUrl(shop) || (shop.photos?.[0] ? photoUrl({ photo_name: shop.photos[0] }) : null);
+  const galleryPhotos: string[] = (
+    shop.photos && shop.photos.length
+      ? shop.photos.map((n: string) => photoUrl({ photo_name: n })).filter(Boolean)
+      : [heroUri].filter(Boolean)
+  ) as string[];
   const googleReviews = shop.google_reviews || [];
   const cat = getCat(shop.category);
   const catIconName = shop.category === "groomer" ? "cut" : shop.category === "both" ? "ribbon" : "storefront";
@@ -98,8 +108,42 @@ export default function ShopDetail() {
     <View style={styles.container} testID="shop-detail">
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Image source={{ uri: heroUri || undefined }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <LinearGradient colors={["rgba(42,33,28,0.45)", "transparent", "rgba(42,33,28,0.55)"]} style={StyleSheet.absoluteFill} />
+          <FlatList
+            data={galleryPhotos}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(_, i) => String(i)}
+            onMomentumScrollEnd={(e) =>
+              setGalleryIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))
+            }
+            renderItem={({ item, index }) => (
+              <Pressable
+                onPress={() => { setViewerIndex(index); setViewerOpen(true); }}
+                testID={`gallery-photo-${index}`}
+              >
+                <Image source={{ uri: item }} style={styles.heroImg} contentFit="cover" />
+              </Pressable>
+            )}
+          />
+          <LinearGradient
+            colors={["rgba(42,33,28,0.45)", "transparent", "rgba(42,33,28,0.55)"]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+          {galleryPhotos.length > 1 && (
+            <>
+              <View style={styles.dots} pointerEvents="none">
+                {galleryPhotos.map((_, i) => (
+                  <View key={i} style={[styles.dot, i === galleryIndex && styles.dotActive]} />
+                ))}
+              </View>
+              <View style={styles.countBadge} pointerEvents="none">
+                <Ionicons name="images" size={13} color="#fff" />
+                <Text style={styles.countText}>{galleryIndex + 1}/{galleryPhotos.length}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.sheet}>
@@ -202,10 +246,10 @@ export default function ShopDetail() {
       {/* Floating nav buttons — visible at any scroll level */}
       <View style={[styles.floatNav, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
         <Pressable style={styles.iconBtn} onPress={() => router.back()} testID="back-button">
-          <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
+          <Ionicons name="chevron-back" size={24} color="#2A211C" />
         </Pressable>
         <Pressable style={styles.iconBtn} onPress={toggleFav} testID="favorite-toggle">
-          <Ionicons name={fav ? "heart" : "heart-outline"} size={24} color={fav ? colors.error : colors.onSurface} />
+          <Ionicons name={fav ? "heart" : "heart-outline"} size={24} color={fav ? colors.error : "#2A211C"} />
         </Pressable>
       </View>
 
@@ -231,6 +275,41 @@ export default function ShopDetail() {
           <Text style={styles.bookText}>{t("shop.directions")}</Text>
         </Pressable>
       </View>
+
+      {/* Full-screen photo viewer */}
+      <Modal visible={viewerOpen} transparent animationType="fade" onRequestClose={() => setViewerOpen(false)}>
+        <View style={styles.viewer}>
+          <FlatList
+            data={galleryPhotos}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={viewerIndex}
+            getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
+            keyExtractor={(_, i) => String(i)}
+            onMomentumScrollEnd={(e) =>
+              setViewerIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))
+            }
+            renderItem={({ item }) => (
+              <View style={styles.viewerPage}>
+                <Image source={{ uri: item }} style={styles.viewerImg} contentFit="contain" />
+              </View>
+            )}
+          />
+          <Pressable
+            style={[styles.viewerClose, { top: insets.top + spacing.sm }]}
+            onPress={() => setViewerOpen(false)}
+            testID="viewer-close"
+          >
+            <Ionicons name="close" size={28} color="#fff" />
+          </Pressable>
+          {galleryPhotos.length > 1 && (
+            <View style={[styles.viewerCount, { bottom: insets.bottom + spacing.xl }]} pointerEvents="none">
+              <Text style={styles.viewerCountText}>{viewerIndex + 1} / {galleryPhotos.length}</Text>
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -243,6 +322,18 @@ const makeStyles = (colors: ThemeColors) =>
   retryBtn: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: radius.pill },
   retryText: { color: colors.onBrand, fontWeight: "800" },
   hero: { height: 300 },
+  heroImg: { width: SCREEN_W, height: 300, backgroundColor: colors.surfaceTertiary },
+  dots: { position: "absolute", bottom: 34, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.5)" },
+  dotActive: { backgroundColor: "#fff", width: 18 },
+  countBadge: { position: "absolute", top: spacing.sm, right: spacing.lg, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill },
+  countText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  viewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)" },
+  viewerPage: { width: SCREEN_W, height: SCREEN_H, alignItems: "center", justifyContent: "center" },
+  viewerImg: { width: SCREEN_W, height: SCREEN_H * 0.85 },
+  viewerClose: { position: "absolute", right: spacing.lg, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
+  viewerCount: { position: "absolute", left: 0, right: 0, alignItems: "center" },
+  viewerCountText: { color: "#fff", fontSize: 14, fontWeight: "800", backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.pill, overflow: "hidden" },
   floatNav: { position: "absolute", left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.lg },
   iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center", ...shadow.float },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, marginTop: -24, padding: spacing.lg, gap: spacing.sm },

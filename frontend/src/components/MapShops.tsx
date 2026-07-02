@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
@@ -34,6 +34,16 @@ export default function MapShops({
   const mapRef = useRef<MapView>(null);
   const styles = useThemedStyles(makeStyles);
   const center = region || { latitude: 37.9838, longitude: 23.7275 };
+
+  // Custom marker views (vector icons) render blank on Android when tracksViewChanges
+  // is false from the start — the pin is snapshotted before the icon font paints.
+  // So we track changes briefly whenever the pins change, then stop for performance.
+  const [tracks, setTracks] = useState(true);
+  useEffect(() => {
+    setTracks(true);
+    const timer = setTimeout(() => setTracks(false), 1200);
+    return () => clearTimeout(timer);
+  }, [shops.length, focusId]);
 
   // Re-center when the resolved location (GPS / search) changes.
   useEffect(() => {
@@ -80,7 +90,7 @@ export default function MapShops({
                 coordinate={{ latitude: s.latitude, longitude: s.longitude }}
                 onPress={() => onSelect?.(s)}
                 zIndex={focused ? 10 : 1}
-                tracksViewChanges={false}
+                tracksViewChanges={tracks}
               >
                 <View style={[styles.pin, { backgroundColor: c.main }, focused && styles.pinFocused]}>
                   <Ionicons name={catIcon(s.category) as any} size={focused ? 22 : 17} color="#fff" />

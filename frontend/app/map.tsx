@@ -44,7 +44,7 @@ export default function MapScreen() {
         onPress={() => router.back()}
         testID="map-close"
       >
-        <Ionicons name="close" size={24} color={colors.onSurface} />
+        <Ionicons name="close" size={24} color="#2A211C" />
       </Pressable>
 
       {loading && (
