@@ -268,8 +268,15 @@ export default function ShopDetail() {
           style={styles.bookBtn}
           testID="directions-button"
           onPress={() => {
-            const q = shop.latitude && shop.longitude ? `${shop.latitude},${shop.longitude}` : encodeURIComponent(shop.name);
-            Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+            const placeId = shop.id;
+            const name = encodeURIComponent(shop.name);
+            // Open the actual Google listing (named place) with directions, not raw coordinates.
+            const url = placeId
+              ? `https://www.google.com/maps/dir/?api=1&destination=${name}&destination_place_id=${placeId}`
+              : shop.latitude && shop.longitude
+                ? `https://www.google.com/maps/dir/?api=1&destination=${shop.latitude},${shop.longitude}`
+                : `https://www.google.com/maps/search/?api=1&query=${name}`;
+            Linking.openURL(url);
           }}
         >
           <Ionicons name="navigate" size={20} color={colors.onBrand} />

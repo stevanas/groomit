@@ -93,7 +93,7 @@ export default function MapShops({
                 tracksViewChanges={tracks}
               >
                 <View style={[styles.pin, { backgroundColor: c.main }, focused && styles.pinFocused]}>
-                  <Ionicons name={catIcon(s.category) as any} size={focused ? 22 : 17} color="#fff" />
+                  <Ionicons name={catIcon(s.category) as any} size={17} color="#fff" />
                 </View>
               </Marker>
             );
@@ -116,10 +116,7 @@ const makeStyles = (colors: ThemeColors) =>
     borderColor: "#fff",
   },
   pinFocused: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     borderColor: colors.brand,
-    borderWidth: 4,
+    borderWidth: 5,
   },
 });
