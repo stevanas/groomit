@@ -326,7 +326,7 @@ const makeStyles = (colors: ThemeColors) =>
   dots: { position: "absolute", bottom: 34, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 6 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.5)" },
   dotActive: { backgroundColor: "#fff", width: 18 },
-  countBadge: { position: "absolute", top: spacing.sm, right: spacing.lg, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill },
+  countBadge: { position: "absolute", bottom: 30, right: spacing.lg, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill },
   countText: { color: "#fff", fontSize: 12, fontWeight: "800" },
   viewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)" },
   viewerPage: { width: SCREEN_W, height: SCREEN_H, alignItems: "center", justifyContent: "center" },
