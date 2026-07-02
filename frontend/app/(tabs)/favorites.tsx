@@ -47,7 +47,7 @@ export default function FavoritesScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]} testID="favorites-screen">
+    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]} testID="favorites-screen">
       <View style={styles.header}>
         <Text style={styles.title}>{t("saved.title")}</Text>
         <Text style={styles.subtitle}>{t("saved.sub")}</Text>
@@ -74,7 +74,7 @@ export default function FavoritesScreen() {
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md },
   title: { fontSize: 28, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display },
   subtitle: { fontSize: 14, color: colors.muted, marginTop: 2 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },

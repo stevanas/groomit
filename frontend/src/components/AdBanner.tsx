@@ -13,7 +13,7 @@ try {
 }
 
 // Set to true ONLY while testing (serves Google test ads). false for public release.
-const USE_TEST_ADS = false;
+const USE_TEST_ADS = true;
 const REAL_BANNER_UNIT_ID = "ca-app-pub-9770198187060268/9816758769";
 const BANNER_UNIT_ID = Ads && (USE_TEST_ADS || __DEV__) ? Ads.TestIds.ADAPTIVE_BANNER : REAL_BANNER_UNIT_ID;
 

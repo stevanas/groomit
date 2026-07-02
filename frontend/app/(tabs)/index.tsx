@@ -152,7 +152,7 @@ const makeStyles = (colors: ThemeColors) =>
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
   logo: { width: 40, height: 40 },
   brand: { fontSize: 26, color: colors.onSurface, fontFamily: fonts.display, fontWeight: "700" },
-  heading: { fontSize: 26, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginTop: spacing.md },
+  heading: { fontSize: 28, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginTop: spacing.md },
   sub: { fontSize: 15, color: colors.muted, marginBottom: spacing.md, lineHeight: 21 },
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, ...shadow.card },
   label: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary, marginTop: spacing.xs },

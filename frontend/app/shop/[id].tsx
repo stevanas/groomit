@@ -160,14 +160,15 @@ export default function ShopDetail() {
             <Stars value={shop.rating || 0} size={18} />
             <Text style={styles.ratingNum}>{shop.rating ?? "–"}</Text>
             <Text style={styles.ratingCount}>· {shop.user_rating_count || 0} {t("shop.ratings")}</Text>
-            {shop.open_now != null && (
-              <View style={[styles.openBadge, { backgroundColor: shop.open_now ? colors.brandTertiary : colors.surfaceTertiary }]}>
-                <Text style={[styles.openText, { color: shop.open_now ? colors.success : colors.muted }]}>
-                  {shop.open_now ? t("shop.openNow") : t("shop.closedNow")}
-                </Text>
-              </View>
-            )}
           </View>
+
+          {shop.open_now != null && (
+            <View style={[styles.openBadge, { backgroundColor: shop.open_now ? colors.brandTertiary : colors.surfaceTertiary }]}>
+              <Text style={[styles.openText, { color: shop.open_now ? colors.success : colors.muted }]}>
+                {shop.open_now ? t("shop.openNow") : t("shop.closedNow")}
+              </Text>
+            </View>
+          )}
 
           {/* Contact */}
           <Text style={styles.sectionTitle}>{t("shop.contact")}</Text>
@@ -343,10 +344,10 @@ const makeStyles = (colors: ThemeColors) =>
   catPill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, marginTop: spacing.xs },
   catPillText: { fontSize: 13, fontWeight: "800" },
   catBadge: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, flexWrap: "wrap", marginTop: spacing.xs },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.xs },
   ratingNum: { fontSize: 16, fontWeight: "900", color: colors.onSurface, marginLeft: 4 },
-  ratingCount: { fontSize: 14, color: colors.muted },
-  openBadge: { marginLeft: "auto", paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.pill },
+  ratingCount: { fontSize: 14, color: colors.muted, flexShrink: 1 },
+  openBadge: { alignSelf: "flex-start", marginTop: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill },
   openText: { fontSize: 12, fontWeight: "800" },
   sectionTitle: { fontSize: 18, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginTop: spacing.lg },
   infoCard: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, ...shadow.card },

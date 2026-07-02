@@ -11,7 +11,7 @@ const el: Dict = {
 
   "tab.find": "Αναζήτηση",
   "tab.browse": "Καταστήματα",
-  "tab.saved": "Αποθηκευμένα",
+  "tab.saved": "Αγαπημένα",
   "tab.profile": "Προφίλ",
 
   "find.heading": "Τι ψάχνεις σήμερα;",
@@ -99,14 +99,14 @@ const el: Dict = {
   "shop.closedLabel": "Κλειστά",
   "shop.loadError": "Αποτυχία φόρτωσης στοιχείων.",
 
-  "saved.title": "Αποθηκευμένα",
+  "saved.title": "Αγαπημένα",
   "saved.sub": "Τα αγαπημένα σου μέρη",
-  "saved.empty": "Δεν έχεις αποθηκεύσει μέρη. Πάτα την καρδιά σε ένα κατάστημα για να το σώσεις.",
+  "saved.empty": "Δεν έχεις αγαπημένα μέρη ακόμα. Πάτα την καρδιά σε ένα κατάστημα για να το προσθέσεις.",
 
   "profile.title": "Προφίλ",
   "profile.welcome": "Καλώς ήρθες στο",
   "profile.guest": "Περιήγηση ως επισκέπτης",
-  "profile.savedNote": "Τα αποθηκευμένα σου κρατούνται σε αυτή τη συσκευή",
+  "profile.savedNote": "Τα αγαπημένα σου κρατούνται σε αυτή τη συσκευή",
   "profile.language": "Γλώσσα",
   "support.title": "Υποστήριξη",
   "support.removeAdsTitle": "Αφαίρεση διαφημίσεων",
