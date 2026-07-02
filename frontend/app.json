@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.groomit.app",
-      "versionCode": 121,
+      "versionCode": 122,
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyDbOvjjXogHbtLoD6BgRcsE7UW72mzVd-w"
