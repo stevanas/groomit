@@ -37,13 +37,14 @@ export default function MapShops({
 
   // Custom marker views (vector icons) render blank on Android when tracksViewChanges
   // is false from the start — the pin is snapshotted before the icon font paints.
-  // So we track changes briefly whenever the pins change, then stop for performance.
+  // So we track changes whenever the pin set changes, then stop for performance.
   const [tracks, setTracks] = useState(true);
+  const idsKey = shops.map((s) => s.id).join(",");
   useEffect(() => {
     setTracks(true);
-    const timer = setTimeout(() => setTracks(false), 1200);
+    const timer = setTimeout(() => setTracks(false), 2500);
     return () => clearTimeout(timer);
-  }, [shops.length, focusId]);
+  }, [idsKey, focusId]);
 
   // Re-center when the resolved location (GPS / search) changes.
   useEffect(() => {
@@ -84,15 +85,22 @@ export default function MapShops({
           .map((s) => {
             const focused = focusId != null && String(s.id) === String(focusId);
             const c = getCat(s.category);
+            const closed = s.open_now === false;
             return (
               <Marker
                 key={s.id}
                 coordinate={{ latitude: s.latitude, longitude: s.longitude }}
                 onPress={() => onSelect?.(s)}
-                zIndex={focused ? 10 : 1}
+                zIndex={focused ? 10 : closed ? 0 : 1}
                 tracksViewChanges={tracks}
               >
-                <View style={[styles.pin, { backgroundColor: c.main }, focused && styles.pinFocused]}>
+                <View
+                  style={[
+                    styles.pin,
+                    { backgroundColor: closed ? "#9AA0A6" : c.main, opacity: closed ? 0.9 : 1 },
+                    focused && styles.pinFocused,
+                  ]}
+                >
                   <Ionicons name={catIcon(s.category) as any} size={17} color="#fff" />
                 </View>
               </Marker>

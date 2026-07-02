@@ -39,7 +39,7 @@ export default function LocationAutocomplete({
     const q = value.trim();
     if (q.length < 2) {
       setSuggestions([]);
-      setOpen(false);
+      setLoading(false);
       return;
     }
     setLoading(true);
@@ -77,6 +77,8 @@ export default function LocationAutocomplete({
           placeholderTextColor={colors.muted}
           value={value}
           onChangeText={onChangeText}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 200)}
           testID={testID}
         />
         {loading ? (
