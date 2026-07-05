@@ -1,0 +1,36 @@
+{
+  "summary": "Backend-only regression for GR-oom It after Google Places cache refactor. All 22 pytest cases against public URL https://pet-connect-52.preview.emergentagent.com/api PASSED. Verified: (1) GET /api/ returns places_provider='google' & live_google_enabled=true; (2) /api/places/nearby returns full schema (id/name/address/lat/lng/category/rating/open_now/schedule[7]) with open_now DERIVED as boolean/None from schedule (Europe/Athens tz); (3) category filtering for groomer/groomerShop/vet/pharmacy/all + multi-select 'shop,groomer' works; invalid category 'foo' returns 400 with 'Invalid category' detail; (4) pagination: next_page_token round-trips and returns a distinct results page; (5) CACHING: after reset, identical nearby call twice -> calls.text_search=1 & cache.nearby.hits>=1 (second call served from Mongo api_cache, not Google); (6) autocomplete second call is cache hit (calls.autocomplete<=1, cache.autocomplete.hits>=1); (7) geocode Athens returns latitude/longitude/label; (8) place details from a real Google id returns name/address/phone/website/open_now/schedule/photos/google_reviews; second call is cache hit (calls.place_details=1, cache.details.hits>=1); (9) /api/places/photo returns image bytes with Content-Type image/* and second call is cache hit (calls.photo=1, cache.photo.hits>=1); (10) /api/favorites GET & POST return 401 without/with invalid Bearer. Metrics payload contains keys calls/cache/budget/estimated_spend_eur/daily_budget_calls/daily_budget_eur. MongoDB api_cache collection is populated across buckets (nearby, photo, geocode, details, autocomplete) and has TTL index on expires_at + bucket index (verified via motor query).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pawfind_api.py",
+    "/app/test_reports/pytest/pawfind_api.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now ~1011 lines. Consider splitting into modules (auth/places/metrics/favorites) since it crossed the 700-line guideline threshold.",
+    "In-memory GOOGLE_CALL_METRICS / GOOGLE_USAGE_WINDOW / BLOCKED_METRICS still live in process memory (Mongo cache is persistent, but the daily counters are not). If backend restarts mid-day the daily budget resets to 0 in-memory, which could allow more than GOOGLE_DAILY_BUDGET_CALLS spend across a day if the pod restarts. Consider persisting the daily counter to Mongo.",
+    "In _detail_from_nearby_cache (server.py:274) the Mongo query filters by 'value.results.id' which requires a scan of api_cache docs (no index). Fine at current cache volume; add a compound index if the collection grows large.",
+    "_cache_key concatenates key parts with '|'; if any part legitimately contains '|' (unlikely for coords/ids but possible in autocomplete input), cache collisions could occur. Consider using a hash or JSON-serialised key.",
+    "Only 3 docs found in api_cache post-run because several test cases call /metrics/google-usage/reset which does db.api_cache.delete_many({}). That's a destructive side effect of a metrics endpoint — the reset action wipes ALL cached Google responses. This is documented in the refactor context but worth calling out: prod ops should be aware the metrics reset endpoint invalidates the whole cache."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_pawfind_api.py (rewritten to cover cache refactor, 22 tests)",
+    "/app/test_reports/iteration_2.json (new)",
+    "/app/test_reports/pytest/pawfind_api.xml (updated)"
+  ],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "not tested"},
+  "seed_data_creation": "None. Live Google Places used. Reset endpoint wipes api_cache between critical caching tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Live Google Places is enabled (ENABLE_LIVE_GOOGLE_PLACES=true, real key in backend/.env, daily budget cap 400 calls / 2.0 EUR). /api/metrics/google-usage/reset performs db.api_cache.delete_many({}) in addition to zeroing counters — use it sparingly during testing so you don't invalidate a warm production-like cache. Cache hit assertions rely on calling reset before the pair of identical requests. The api_cache Mongo collection has 2 indexes: TTL on expires_at (0 sec, uses per-doc datetime) and non-unique on bucket. Live Google may occasionally 400/502 during rate spikes — retry once. Auth flow (Emergent OAuth) cannot be automated headless; only 401 guards are asserted. Reuse /app/backend/tests/test_pawfind_api.py as regression suite.",
+  "rca_of_issue": "N/A - no defects found. Cache refactor works: persistent Mongo cache serves identical requests within TTL (7d nearby/details, 1d autocomplete, 30d geocode/photo), open_now correctly derived server-side from schedule (Europe/Athens tz) rather than Google's live currentOpeningHours, and metrics correctly report hits vs misses per bucket."
+}
