@@ -18,8 +18,9 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
   const { t } = useI18n();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  // Avoid paid photo proxy calls in lists: only use direct URLs if present.
-  const uri = shop?.image_url || (typeof shop?.photo_name === "string" && /^https?:\/\//.test(shop.photo_name) ? shop.photo_name : null);
+  // Photos are served via the backend proxy, which caches each image for 30 days
+  // (persistent Mongo cache) + expo-image caches on device — so each photo is paid at most once.
+  const uri = photoUrl(shop, { size: "preview" });
   const cat = getCat(shop.category);
   const today = shop.schedule?.[TODAY_IDX];
   const is24h = today && !today.closed && today.open === "00:00" && today.close === "23:59";

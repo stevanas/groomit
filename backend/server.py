@@ -7,6 +7,7 @@ import os
 import logging
 import uuid
 import math
+import asyncio
 import httpx
 from pathlib import Path
 from pydantic import BaseModel
@@ -142,6 +143,36 @@ def _record_google_call(metric: str):
     GOOGLE_CALL_METRICS[metric] += 1
     GOOGLE_USAGE_WINDOW["spent_eur"] += GOOGLE_ESTIMATED_EUR[metric]
     _maybe_log_budget_alerts()
+    # Persist so the daily cap survives backend restarts (best-effort, non-blocking).
+    try:
+        asyncio.get_running_loop().create_task(_persist_usage())
+    except RuntimeError:
+        pass
+
+
+async def _persist_usage():
+    try:
+        await db.api_usage.replace_one(
+            {"_id": "google_daily"},
+            {"_id": "google_daily", "date": GOOGLE_USAGE_WINDOW["date"],
+             "calls": GOOGLE_USAGE_WINDOW["calls"], "spent_eur": GOOGLE_USAGE_WINDOW["spent_eur"]},
+            upsert=True,
+        )
+    except Exception:
+        pass
+
+
+async def _load_usage():
+    """Restore today's usage counters from Mongo on startup so a restart can't reset the daily cap."""
+    try:
+        doc = await db.api_usage.find_one({"_id": "google_daily"})
+        today = datetime.now(timezone.utc).date().isoformat()
+        if doc and doc.get("date") == today:
+            GOOGLE_USAGE_WINDOW["date"] = today
+            GOOGLE_USAGE_WINDOW["calls"] = int(doc.get("calls", 0))
+            GOOGLE_USAGE_WINDOW["spent_eur"] = float(doc.get("spent_eur", 0.0))
+    except Exception:
+        pass
 
 
 def _maybe_log_budget_alerts():
@@ -966,6 +997,7 @@ async def reset_google_usage_metrics():
     GOOGLE_USAGE_WINDOW["date"] = _utcnow().date().isoformat()
     GOOGLE_USAGE_WINDOW["calls"] = 0
     GOOGLE_USAGE_WINDOW["spent_eur"] = 0.0
+    await _persist_usage()
     for metric in GOOGLE_CALL_METRICS:
         GOOGLE_CALL_METRICS[metric] = 0
     BLOCKED_METRICS["total"] = 0
@@ -1029,6 +1061,7 @@ async def startup():
     await db.favorites.create_index([("user_id", 1), ("place_id", 1)], unique=True)
     await db.api_cache.create_index("expires_at", expireAfterSeconds=0)
     await db.api_cache.create_index("bucket")
+    await _load_usage()
 
 
 @app.on_event("shutdown")
