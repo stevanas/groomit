@@ -27,7 +27,7 @@ GOOGLE_DAILY_BUDGET_EUR = float(os.environ.get("GOOGLE_DAILY_BUDGET_EUR", "1.0")
 ENABLE_LIVE_GOOGLE_PLACES = os.environ.get("ENABLE_LIVE_GOOGLE_PLACES", "false").strip().lower() in {"1", "true", "yes", "on"}
 DISABLE_LIVE_GOOGLE_PLACES = os.environ.get("DISABLE_LIVE_GOOGLE_PLACES", "false").strip().lower() in {"1", "true", "yes", "on"}
 ALLOW_LIVE_GOOGLE_IN_DEV = os.environ.get("ALLOW_LIVE_GOOGLE_IN_DEV", "false").strip().lower() in {"1", "true", "yes", "on"}
-ALLOW_LIVE_GOOGLE_IN_NON_PROD = os.environ.get("ALLOW_LIVE_GOOGLE_IN_NON_PROD", "false").strip().lower() in {"1", "true", "yes", "on"}
+ALLOW_LIVE_GOOGLE_IN_NON_PROD = os.environ.get("ALLOW_LIVE_GOOGLE_IN_NON_PROD", "true").strip().lower() in {"1", "true", "yes", "on"}
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").strip().lower()
 
 app = FastAPI()
