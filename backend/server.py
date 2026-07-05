@@ -11,6 +11,9 @@ from pathlib import Path
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
+
+ATHENS_TZ = ZoneInfo("Europe/Athens")
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -34,11 +37,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
-NEARBY_CACHE_TTL_SECONDS = 3600
-DETAIL_CACHE_TTL_SECONDS = 86400
-AUTOCOMPLETE_CACHE_TTL_SECONDS = 600
-GEOCODE_CACHE_TTL_SECONDS = 604800
-PHOTO_CACHE_TTL_SECONDS = 604800
+NEARBY_CACHE_TTL_SECONDS = 604800      # 7 days — shops rarely change
+DETAIL_CACHE_TTL_SECONDS = 604800      # 7 days
+AUTOCOMPLETE_CACHE_TTL_SECONDS = 86400 # 1 day
+GEOCODE_CACHE_TTL_SECONDS = 2592000    # 30 days
+PHOTO_CACHE_TTL_SECONDS = 2592000      # 30 days
 PHOTO_DETAIL_LIMIT = 3
 
 GOOGLE_CALL_METRICS = {
@@ -84,11 +87,6 @@ BLOCKED_METRICS = {
 GOOGLE_USAGE_WINDOW = {"date": datetime.now(timezone.utc).date().isoformat(), "calls": 0, "spent_eur": 0.0}
 ALERT_THRESHOLDS = (0.70, 0.85, 1.00)
 ALERT_STATE = {"date": GOOGLE_USAGE_WINDOW["date"], "fired": set()}
-nearby_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
-detail_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
-autocomplete_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
-geocode_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
-photo_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
 PHOTO_RESPONSE_HEADERS = {"Cache-Control": f"public, max-age={PHOTO_CACHE_TTL_SECONDS}"}
 
 
@@ -96,21 +94,31 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _cache_get(cache: Dict[Tuple[Any, ...], Dict[str, Any]], key: Tuple[Any, ...], bucket: str):
-    entry = cache.get(key)
-    if not entry:
-        CACHE_METRICS[bucket]["misses"] += 1
-        return None
-    if entry["expires_at"] <= _utcnow():
-        cache.pop(key, None)
-        CACHE_METRICS[bucket]["misses"] += 1
-        return None
-    CACHE_METRICS[bucket]["hits"] += 1
-    return entry["value"]
+def _cache_key(bucket: str, key: Tuple[Any, ...]) -> str:
+    return bucket + "|" + "|".join("" if k is None else str(k) for k in key)
 
 
-def _cache_put(cache: Dict[Tuple[Any, ...], Dict[str, Any]], key: Tuple[Any, ...], value: Any, ttl_seconds: int):
-    cache[key] = {"value": value, "expires_at": _utcnow() + timedelta(seconds=ttl_seconds)}
+async def _cache_get(bucket: str, key: Tuple[Any, ...]):
+    """Persistent MongoDB cache read (shared across users, survives restarts)."""
+    entry = await db.api_cache.find_one({"_id": _cache_key(bucket, key)})
+    if entry:
+        exp = entry.get("expires_at")
+        if exp is not None and exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if exp is None or exp > _utcnow():
+            CACHE_METRICS[bucket]["hits"] += 1
+            return entry["value"]
+    CACHE_METRICS[bucket]["misses"] += 1
+    return None
+
+
+async def _cache_put(bucket: str, key: Tuple[Any, ...], value: Any, ttl_seconds: int):
+    cid = _cache_key(bucket, key)
+    await db.api_cache.replace_one(
+        {"_id": cid},
+        {"_id": cid, "bucket": bucket, "value": value, "expires_at": _utcnow() + timedelta(seconds=ttl_seconds)},
+        upsert=True,
+    )
 
 
 def _reset_usage_if_needed():
@@ -263,37 +271,41 @@ def _normalize_photo_entries(photos: Optional[List[Any]]) -> List[str]:
             normalized.append(photo)
     return normalized[:PHOTO_DETAIL_LIMIT]
 
-def _detail_from_nearby_cache(place_id: str) -> Optional[dict]:
-    now = _utcnow()
-    for entry in nearby_cache.values():
-        if entry["expires_at"] <= now:
+async def _detail_from_nearby_cache(place_id: str) -> Optional[dict]:
+    entry = await db.api_cache.find_one({"bucket": "nearby", "value.results.id": str(place_id)})
+    if not entry:
+        return None
+    exp = entry.get("expires_at")
+    if exp is not None and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp is not None and exp <= _utcnow():
+        return None
+    payload = entry.get("value") or {}
+    for place in payload.get("results", []):
+        if str(place.get("id")) != str(place_id):
             continue
-        payload = entry.get("value") or {}
-        for place in payload.get("results", []):
-            if str(place.get("id")) != str(place_id):
-                continue
-            photo_name = place.get("photo_name")
-            photo_entries = [photo_name] if photo_name else []
-            return {
-                "id": place.get("id"),
-                "name": place.get("name", ""),
-                "address": place.get("address", ""),
-                "latitude": place.get("latitude"),
-                "longitude": place.get("longitude"),
-                "category": _normalize_category(place.get("category")),
-                "rating": place.get("rating"),
-                "user_rating_count": place.get("user_rating_count", 0),
-                "phone": "",
-                "website": "",
-                "open_now": place.get("open_now"),
-                "photos": _normalize_photo_entries(photo_entries),
-                "image_url": place.get("image_url"),
-                "schedule": place.get("schedule"),
-                "schedule_text": [],
-                "tags": place.get("tags", []),
-                "google_reviews": [],
-                "source": "budget_cap_cached_summary",
-            }
+        photo_name = place.get("photo_name")
+        photo_entries = [photo_name] if photo_name else []
+        return {
+            "id": place.get("id"),
+            "name": place.get("name", ""),
+            "address": place.get("address", ""),
+            "latitude": place.get("latitude"),
+            "longitude": place.get("longitude"),
+            "category": _normalize_category(place.get("category")),
+            "rating": place.get("rating"),
+            "user_rating_count": place.get("user_rating_count", 0),
+            "phone": "",
+            "website": "",
+            "open_now": place.get("open_now"),
+            "photos": _normalize_photo_entries(photo_entries),
+            "image_url": place.get("image_url"),
+            "schedule": place.get("schedule"),
+            "schedule_text": [],
+            "tags": place.get("tags", []),
+            "google_reviews": [],
+            "source": "budget_cap_cached_summary",
+        }
     return None
 
 
@@ -570,6 +582,28 @@ def _matches_category(place_cat: Optional[str], place_tags: list, selected_cats:
     return False
 
 
+def _open_now_from_schedule(schedule):
+    """Derive open/closed from the weekly (Monday-indexed) schedule using Athens local time.
+    Lets us cache places for days without stale live-hours calls."""
+    if not schedule:
+        return None
+    now = datetime.now(ATHENS_TZ)
+    idx = now.weekday()  # Monday=0 .. Sunday=6 — matches schedule indexing
+    try:
+        day = schedule[idx]
+    except (IndexError, TypeError):
+        return None
+    if not day or day.get("closed"):
+        return False
+    o, c = day.get("open"), day.get("close")
+    if not o or not c:
+        return None
+    cur = now.strftime("%H:%M")
+    if c < o:  # overnight range (e.g., 20:00-02:00)
+        return cur >= o or cur <= c
+    return o <= cur <= c
+
+
 def _periods_to_schedule(periods):
     """Google regularOpeningHours.periods -> 7-entry Monday-indexed schedule."""
     if not periods:
@@ -606,7 +640,7 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
     url = "https://places.googleapis.com/v1/places:searchText"
     field_mask = ("places.id,places.displayName,places.formattedAddress,places.location,"
                   "places.types,places.rating,places.userRatingCount,places.photos,"
-                  "places.currentOpeningHours,places.regularOpeningHours,nextPageToken")
+                  "places.regularOpeningHours,nextPageToken")
     payload = {
         "textQuery": query, "languageCode": lang,
         "locationBias": {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": float(radius)}},
@@ -629,14 +663,15 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
         loc = p.get("location", {})
         p_types = p.get("types", [])
         cat = _classify(p_types, name)
+        sched = _periods_to_schedule(p.get("regularOpeningHours", {}).get("periods"))
         out.append({
             "id": p.get("id"), "name": name, "address": p.get("formattedAddress", ""),
             "latitude": loc.get("latitude"), "longitude": loc.get("longitude"),
             "category": cat, "rating": p.get("rating"),
             "user_rating_count": p.get("userRatingCount", 0),
             "photo_name": photos[0]["name"] if photos else None, "image_url": None,
-            "open_now": p.get("currentOpeningHours", {}).get("openNow"),
-            "schedule": _periods_to_schedule(p.get("regularOpeningHours", {}).get("periods")),
+            "open_now": _open_now_from_schedule(sched),
+            "schedule": sched,
             "tags": _get_tags(p_types, name),
         })
     return out, data.get("nextPageToken")
@@ -664,7 +699,7 @@ async def places_autocomplete(input: str, lang: str = "el",
         return _seed_autocomplete(query)
 
     cache_key = (input.strip().lower()[:80], lang, _rounded_coord(lat), _rounded_coord(lng))
-    cached = _cache_get(autocomplete_cache, cache_key, "autocomplete")
+    cached = await _cache_get("autocomplete", cache_key)
     if cached is not None:
         return cached
     reason = _budget_reason("autocomplete")
@@ -695,14 +730,14 @@ async def places_autocomplete(input: str, lang: str = "el",
             "secondary": sf.get("secondaryText", {}).get("text", ""),
         })
     response = {"suggestions": out, "source": "google"}
-    _cache_put(autocomplete_cache, cache_key, response, AUTOCOMPLETE_CACHE_TTL_SECONDS)
+    await _cache_put("autocomplete", cache_key, response, AUTOCOMPLETE_CACHE_TTL_SECONDS)
     return response
 
 
 @api_router.get("/places/geocode")
 async def geocode(q: str, lang: str = "el"):
     cache_key = (q.strip().lower()[:120], lang)
-    cached = _cache_get(geocode_cache, cache_key, "geocode")
+    cached = await _cache_get("geocode", cache_key)
     if cached is not None:
         return cached
     if _google_places_enabled() and q.strip():
@@ -710,7 +745,7 @@ async def geocode(q: str, lang: str = "el"):
         if reason:
             _record_budget_block("geocode", reason)
             fallback = {"latitude": 37.9838, "longitude": 23.7275, "label": q or "Αθήνα", "source": "budget_cap"}
-            _cache_put(geocode_cache, cache_key, fallback, GEOCODE_CACHE_TTL_SECONDS)
+            await _cache_put("geocode", cache_key, fallback, GEOCODE_CACHE_TTL_SECONDS)
             return fallback
         url = "https://maps.googleapis.com/maps/api/geocode/json"
         params = {"address": q, "key": GOOGLE_MAPS_API_KEY, "language": lang}
@@ -722,10 +757,10 @@ async def geocode(q: str, lang: str = "el"):
             r = data["results"][0]
             loc = r["geometry"]["location"]
             response = {"latitude": loc["lat"], "longitude": loc["lng"], "label": r.get("formatted_address", q)}
-            _cache_put(geocode_cache, cache_key, response, GEOCODE_CACHE_TTL_SECONDS)
+            await _cache_put("geocode", cache_key, response, GEOCODE_CACHE_TTL_SECONDS)
             return response
     fallback = _seed_geocode(q)
-    _cache_put(geocode_cache, cache_key, fallback, GEOCODE_CACHE_TTL_SECONDS)
+    await _cache_put("geocode", cache_key, fallback, GEOCODE_CACHE_TTL_SECONDS)
     return fallback
 
 
@@ -755,7 +790,7 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
             lang,
             page_token or "",
         )
-        cached = _cache_get(nearby_cache, cache_key, "nearby")
+        cached = await _cache_get("nearby", cache_key)
         if cached is not None:
             return cached
 
@@ -783,7 +818,7 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
                 results.append(r)
 
         response = {"results": results, "next_page_token": merged_next, "source": "google"}
-        _cache_put(nearby_cache, cache_key, response, NEARBY_CACHE_TTL_SECONDS)
+        await _cache_put("nearby", cache_key, response, NEARBY_CACHE_TTL_SECONDS)
         return response
     
     # Seed fallback — select places matching any of the categories
@@ -806,7 +841,7 @@ async def place_photo(name: str, max_width: int = 800):
     if not _google_places_enabled():
         raise HTTPException(status_code=404, detail="No provider")
     cache_key = (name, max(200, min(max_width, 1600)))
-    cached = _cache_get(photo_cache, cache_key, "photo")
+    cached = await _cache_get("photo", cache_key)
     if cached is not None:
         return Response(content=cached["content"], media_type=cached["media_type"], headers=PHOTO_RESPONSE_HEADERS)
     reason = _budget_reason("photo")
@@ -823,14 +858,14 @@ async def place_photo(name: str, max_width: int = 800):
         raise HTTPException(status_code=502, detail="Photo error")
     media_type = resp.headers.get("Content-Type", "image/jpeg")
     payload = {"content": resp.content, "media_type": media_type}
-    _cache_put(photo_cache, cache_key, payload, PHOTO_CACHE_TTL_SECONDS)
+    await _cache_put("photo", cache_key, payload, PHOTO_CACHE_TTL_SECONDS)
     return Response(content=resp.content, media_type=media_type, headers=PHOTO_RESPONSE_HEADERS)
 
 
 @api_router.get("/places/{place_id}")
 async def place_details(place_id: str, lang: str = "el"):
     cache_key = (place_id, lang)
-    cached = _cache_get(detail_cache, cache_key, "details")
+    cached = await _cache_get("details", cache_key)
     if cached is not None:
         return cached
     if place_id.startswith("seed_"):
@@ -847,20 +882,20 @@ async def place_details(place_id: str, lang: str = "el"):
             "tags": s.get("tags", []),
             "google_reviews": s["reviews"],
         }
-        _cache_put(detail_cache, cache_key, response, DETAIL_CACHE_TTL_SECONDS)
+        await _cache_put("details", cache_key, response, DETAIL_CACHE_TTL_SECONDS)
         return response
     if _google_places_enabled():
         reason = _budget_reason("place_details")
         if reason:
             _record_budget_block("place_details", reason)
-            fallback = _detail_from_nearby_cache(place_id)
+            fallback = await _detail_from_nearby_cache(place_id)
             if fallback:
-                _cache_put(detail_cache, cache_key, fallback, DETAIL_CACHE_TTL_SECONDS)
+                await _cache_put("details", cache_key, fallback, DETAIL_CACHE_TTL_SECONDS)
                 return fallback
             raise HTTPException(status_code=503, detail=_budget_cap_detail("place details", "place_details"))
         url = f"https://places.googleapis.com/v1/places/{place_id}"
         field_mask = ("id,displayName,formattedAddress,location,types,rating,userRatingCount,"
-                      "internationalPhoneNumber,websiteUri,reviews,photos,regularOpeningHours,currentOpeningHours")
+                      "internationalPhoneNumber,websiteUri,reviews,photos,regularOpeningHours")
         headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY, "X-Goog-FieldMask": field_mask}
         async with httpx.AsyncClient(timeout=15.0) as hc:
             resp = await hc.get(url, headers=headers, params={"languageCode": lang})
@@ -871,16 +906,16 @@ async def place_details(place_id: str, lang: str = "el"):
         name = p.get("displayName", {}).get("text", "")
         loc = p.get("location", {})
         oh = p.get("regularOpeningHours", {})
-        cur = p.get("currentOpeningHours", {})
+        sched = _periods_to_schedule(oh.get("periods"))
         response = {
             "id": p.get("id"), "name": name, "address": p.get("formattedAddress", ""),
             "latitude": loc.get("latitude"), "longitude": loc.get("longitude"),
             "category": _classify(p.get("types"), name), "rating": p.get("rating"),
             "user_rating_count": p.get("userRatingCount", 0),
             "phone": p.get("internationalPhoneNumber", ""), "website": p.get("websiteUri", ""),
-            "open_now": cur.get("openNow") if cur.get("openNow") is not None else oh.get("openNow"),
+            "open_now": _open_now_from_schedule(sched),
             "photos": [ph["name"] for ph in p.get("photos", [])[:PHOTO_DETAIL_LIMIT]], "image_url": None,
-            "schedule": _periods_to_schedule(oh.get("periods")), "schedule_text": oh.get("weekdayDescriptions", []),
+            "schedule": sched, "schedule_text": oh.get("weekdayDescriptions", []),
             "tags": _get_tags(p.get("types", []), name),
             "google_reviews": [
                 {"author": r.get("authorAttribution", {}).get("displayName", "Google"),
@@ -888,7 +923,7 @@ async def place_details(place_id: str, lang: str = "el"):
                 for r in p.get("reviews", [])[:6]
             ],
         }
-        _cache_put(detail_cache, cache_key, response, DETAIL_CACHE_TTL_SECONDS)
+        await _cache_put("details", cache_key, response, DETAIL_CACHE_TTL_SECONDS)
         return response
     raise HTTPException(status_code=404, detail="Not found")
 
@@ -915,11 +950,7 @@ async def reset_google_usage_metrics():
     for metric in CACHE_METRICS.values():
         metric["hits"] = 0
         metric["misses"] = 0
-    nearby_cache.clear()
-    detail_cache.clear()
-    autocomplete_cache.clear()
-    geocode_cache.clear()
-    photo_cache.clear()
+    await db.api_cache.delete_many({})
     return JSONResponse({"ok": True, "usage": _google_usage_payload()})
 
 
@@ -970,6 +1001,8 @@ async def startup():
     await db.user_sessions.create_index("session_token", unique=True)
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.favorites.create_index([("user_id", 1), ("place_id", 1)], unique=True)
+    await db.api_cache.create_index("expires_at", expireAfterSeconds=0)
+    await db.api_cache.create_index("bucket")
 
 
 @app.on_event("shutdown")
