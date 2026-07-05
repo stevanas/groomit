@@ -107,7 +107,7 @@ export default function BrowseScreen() {
   }, []);
 
   const day = params.day ? Number(params.day) : -1;
-  const { shops, region, loading, error, reload } = useShops("all", {
+  const { shops, region, loading, error, reload } = useShops(category, {
     locationQuery: params.location,
     day,
     lang,
