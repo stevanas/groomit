@@ -25,9 +25,6 @@ ENABLE_USAGE_METRICS = os.environ.get("ENABLE_USAGE_METRICS", "false").strip().l
 GOOGLE_DAILY_BUDGET_CALLS = int(os.environ.get("GOOGLE_DAILY_BUDGET_CALLS", "500"))
 GOOGLE_DAILY_BUDGET_EUR = float(os.environ.get("GOOGLE_DAILY_BUDGET_EUR", "1.0"))
 ENABLE_LIVE_GOOGLE_PLACES = os.environ.get("ENABLE_LIVE_GOOGLE_PLACES", "false").strip().lower() in {"1", "true", "yes", "on"}
-DISABLE_LIVE_GOOGLE_PLACES = os.environ.get("DISABLE_LIVE_GOOGLE_PLACES", "false").strip().lower() in {"1", "true", "yes", "on"}
-ALLOW_LIVE_GOOGLE_IN_DEV = os.environ.get("ALLOW_LIVE_GOOGLE_IN_DEV", "false").strip().lower() in {"1", "true", "yes", "on"}
-ALLOW_LIVE_GOOGLE_IN_NON_PROD = os.environ.get("ALLOW_LIVE_GOOGLE_IN_NON_PROD", "true").strip().lower() in {"1", "true", "yes", "on"}
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").strip().lower()
 
 app = FastAPI()
@@ -301,13 +298,7 @@ def _detail_from_nearby_cache(place_id: str) -> Optional[dict]:
 
 
 def _google_places_enabled() -> bool:
-    # Keep non-production free by default unless explicitly overridden.
-    if ENVIRONMENT != "production" and not ALLOW_LIVE_GOOGLE_IN_NON_PROD:
-        if ENVIRONMENT == "development" and ALLOW_LIVE_GOOGLE_IN_DEV:
-            pass
-        else:
-            return False
-    return bool(GOOGLE_MAPS_API_KEY) and ENABLE_LIVE_GOOGLE_PLACES and not DISABLE_LIVE_GOOGLE_PLACES
+    return bool(GOOGLE_MAPS_API_KEY) and ENABLE_LIVE_GOOGLE_PLACES
 
 
 # ----------------------------- Models -----------------------------
@@ -962,8 +953,7 @@ async def root():
         "places_provider": "google" if _google_places_enabled() else "seed",
         "seed_first": not _google_places_enabled(),
         "live_google_enabled": _google_places_enabled(),
-        "live_google_disabled": DISABLE_LIVE_GOOGLE_PLACES,
-        "non_prod_live_google_locked": is_non_prod and not ALLOW_LIVE_GOOGLE_IN_NON_PROD,
+        "live_google_disabled": not ENABLE_LIVE_GOOGLE_PLACES,
     }
 
 
