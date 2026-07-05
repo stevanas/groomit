@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Header
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -8,8 +8,8 @@ import logging
 import uuid
 import httpx
 from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from pydantic import BaseModel
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 
 ROOT_DIR = Path(__file__).parent
@@ -21,12 +21,265 @@ db = client[os.environ['DB_NAME']]
 
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '').strip()
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+ENABLE_USAGE_METRICS = os.environ.get("ENABLE_USAGE_METRICS", "false").strip().lower() in {"1", "true", "yes", "on"}
+GOOGLE_DAILY_BUDGET_CALLS = int(os.environ.get("GOOGLE_DAILY_BUDGET_CALLS", "500"))
+GOOGLE_DAILY_BUDGET_EUR = float(os.environ.get("GOOGLE_DAILY_BUDGET_EUR", "1.0"))
+ENABLE_LIVE_GOOGLE_PLACES = os.environ.get("ENABLE_LIVE_GOOGLE_PLACES", "false").strip().lower() in {"1", "true", "yes", "on"}
+DISABLE_LIVE_GOOGLE_PLACES = os.environ.get("DISABLE_LIVE_GOOGLE_PLACES", "false").strip().lower() in {"1", "true", "yes", "on"}
+ALLOW_LIVE_GOOGLE_IN_DEV = os.environ.get("ALLOW_LIVE_GOOGLE_IN_DEV", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+NEARBY_CACHE_TTL_SECONDS = 600
+DETAIL_CACHE_TTL_SECONDS = 1800
+AUTOCOMPLETE_CACHE_TTL_SECONDS = 120
+GEOCODE_CACHE_TTL_SECONDS = 86400
+PHOTO_CACHE_TTL_SECONDS = 86400
+PHOTO_DETAIL_LIMIT = 3
+
+GOOGLE_CALL_METRICS = {
+    "text_search": 0,
+    "place_details": 0,
+    "photo": 0,
+    "autocomplete": 0,
+    "geocode": 0,
+}
+GOOGLE_ESTIMATED_UNITS = {
+    "text_search": 10,
+    "place_details": 5,
+    "photo": 2,
+    "autocomplete": 1,
+    "geocode": 1,
+}
+GOOGLE_ESTIMATED_EUR = {
+    "text_search": 0.050,
+    "place_details": 0.025,
+    "photo": 0.007,
+    "autocomplete": 0.003,
+    "geocode": 0.002,
+}
+CACHE_METRICS = {
+    "nearby": {"hits": 0, "misses": 0},
+    "details": {"hits": 0, "misses": 0},
+    "autocomplete": {"hits": 0, "misses": 0},
+    "geocode": {"hits": 0, "misses": 0},
+    "photo": {"hits": 0, "misses": 0},
+}
+BLOCKED_METRICS = {
+    "total": 0,
+    "calls_cap": 0,
+    "eur_cap": 0,
+    "by_endpoint": {
+        "text_search": 0,
+        "place_details": 0,
+        "photo": 0,
+        "autocomplete": 0,
+        "geocode": 0,
+    },
+}
+GOOGLE_USAGE_WINDOW = {"date": datetime.now(timezone.utc).date().isoformat(), "calls": 0, "spent_eur": 0.0}
+nearby_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
+detail_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
+autocomplete_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
+geocode_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
+photo_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
+PHOTO_RESPONSE_HEADERS = {"Cache-Control": f"public, max-age={PHOTO_CACHE_TTL_SECONDS}"}
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _cache_get(cache: Dict[Tuple[Any, ...], Dict[str, Any]], key: Tuple[Any, ...], bucket: str):
+    entry = cache.get(key)
+    if not entry:
+        CACHE_METRICS[bucket]["misses"] += 1
+        return None
+    if entry["expires_at"] <= _utcnow():
+        cache.pop(key, None)
+        CACHE_METRICS[bucket]["misses"] += 1
+        return None
+    CACHE_METRICS[bucket]["hits"] += 1
+    return entry["value"]
+
+
+def _cache_put(cache: Dict[Tuple[Any, ...], Dict[str, Any]], key: Tuple[Any, ...], value: Any, ttl_seconds: int):
+    cache[key] = {"value": value, "expires_at": _utcnow() + timedelta(seconds=ttl_seconds)}
+
+
+def _reset_usage_if_needed():
+    current_date = _utcnow().date().isoformat()
+    if GOOGLE_USAGE_WINDOW["date"] == current_date:
+        return
+    GOOGLE_USAGE_WINDOW["date"] = current_date
+    GOOGLE_USAGE_WINDOW["calls"] = 0
+    GOOGLE_USAGE_WINDOW["spent_eur"] = 0.0
+    for metric in GOOGLE_CALL_METRICS:
+        GOOGLE_CALL_METRICS[metric] = 0
+    for metric in CACHE_METRICS.values():
+        metric["hits"] = 0
+        metric["misses"] = 0
+
+
+def _record_google_call(metric: str):
+    _reset_usage_if_needed()
+    GOOGLE_USAGE_WINDOW["calls"] += 1
+    GOOGLE_CALL_METRICS[metric] += 1
+    GOOGLE_USAGE_WINDOW["spent_eur"] += GOOGLE_ESTIMATED_EUR[metric]
+
+
+def _budget_reason(metric: Optional[str] = None) -> Optional[str]:
+    _reset_usage_if_needed()
+    if GOOGLE_USAGE_WINDOW["calls"] >= GOOGLE_DAILY_BUDGET_CALLS:
+        return "calls_cap"
+    if metric is None:
+        return "eur_cap" if GOOGLE_USAGE_WINDOW["spent_eur"] >= GOOGLE_DAILY_BUDGET_EUR else None
+    return "eur_cap" if (GOOGLE_USAGE_WINDOW["spent_eur"] + GOOGLE_ESTIMATED_EUR[metric]) > GOOGLE_DAILY_BUDGET_EUR else None
+
+
+def _record_budget_block(metric: str, reason: str):
+    BLOCKED_METRICS["total"] += 1
+    if reason in ("calls_cap", "eur_cap"):
+        BLOCKED_METRICS[reason] += 1
+    if metric in BLOCKED_METRICS["by_endpoint"]:
+        BLOCKED_METRICS["by_endpoint"][metric] += 1
+
+
+def _google_budget_reached(metric: Optional[str] = None) -> bool:
+    _reset_usage_if_needed()
+    if GOOGLE_USAGE_WINDOW["calls"] >= GOOGLE_DAILY_BUDGET_CALLS:
+        return True
+    if metric is None:
+        return GOOGLE_USAGE_WINDOW["spent_eur"] >= GOOGLE_DAILY_BUDGET_EUR
+    return (GOOGLE_USAGE_WINDOW["spent_eur"] + GOOGLE_ESTIMATED_EUR[metric]) > GOOGLE_DAILY_BUDGET_EUR
+
+
+def _budget_cap_detail(endpoint: str, metric: Optional[str] = None) -> str:
+    projected = GOOGLE_USAGE_WINDOW["spent_eur"]
+    if metric:
+        projected += GOOGLE_ESTIMATED_EUR[metric]
+    return (
+        f"Google API budget cap reached for {endpoint} "
+        f"(spent={GOOGLE_USAGE_WINDOW['spent_eur']:.3f} EUR, projected={projected:.3f} EUR, cap={GOOGLE_DAILY_BUDGET_EUR:.3f} EUR)"
+    )
+
+
+def _google_usage_payload() -> dict:
+    _reset_usage_if_needed()
+    estimated_units = {
+        key: GOOGLE_CALL_METRICS[key] * GOOGLE_ESTIMATED_UNITS[key]
+        for key in GOOGLE_CALL_METRICS
+    }
+    estimated_eur = {
+        key: round(GOOGLE_CALL_METRICS[key] * GOOGLE_ESTIMATED_EUR[key], 4)
+        for key in GOOGLE_CALL_METRICS
+    }
+    remaining_calls = max(0, GOOGLE_DAILY_BUDGET_CALLS - GOOGLE_USAGE_WINDOW["calls"])
+    remaining_eur = max(0.0, GOOGLE_DAILY_BUDGET_EUR - GOOGLE_USAGE_WINDOW["spent_eur"])
+    current_block_reason = _budget_reason(None)
+    return {
+        "enabled": ENABLE_USAGE_METRICS,
+        "date": GOOGLE_USAGE_WINDOW["date"],
+        "daily_budget_calls": GOOGLE_DAILY_BUDGET_CALLS,
+        "daily_budget_eur": GOOGLE_DAILY_BUDGET_EUR,
+        "google_calls_today": GOOGLE_USAGE_WINDOW["calls"],
+        "estimated_spend_eur": round(GOOGLE_USAGE_WINDOW["spent_eur"], 4),
+        "calls": dict(GOOGLE_CALL_METRICS),
+        "estimated_units": estimated_units,
+        "estimated_units_total": sum(estimated_units.values()),
+        "estimated_eur": estimated_eur,
+        "cache": CACHE_METRICS,
+        "budget": {
+            "reached": current_block_reason is not None,
+            "reason": current_block_reason,
+            "remaining_calls": remaining_calls,
+            "remaining_eur": round(remaining_eur, 4),
+        },
+        "blocked": {
+            "total": BLOCKED_METRICS["total"],
+            "calls_cap": BLOCKED_METRICS["calls_cap"],
+            "eur_cap": BLOCKED_METRICS["eur_cap"],
+            "by_endpoint": dict(BLOCKED_METRICS["by_endpoint"]),
+        },
+    }
+
+
+def _rounded_coord(value: Optional[float]) -> Optional[float]:
+    if value is None:
+        return None
+    return round(value, 1)
+
+
+def _combined_category_query(categories: List[str]) -> str:
+    normalized = list(dict.fromkeys(categories or ["all"]))
+    if "all" in normalized:
+        return "pet store pet groomer veterinary clinic pet pharmacy"
+    query_parts = {
+        "groomer": "pet groomer",
+        "shop": "pet store",
+        "groomerShop": "pet grooming pet store",
+        "vet": "veterinary clinic",
+        "pharmacy": "pet pharmacy animal pharmacy",
+    }
+    return " ".join(query_parts[category] for category in normalized if category in query_parts)
+
+
+def _ensure_metrics_enabled():
+    if not ENABLE_USAGE_METRICS:
+        raise HTTPException(status_code=404, detail="Usage metrics disabled")
+
+
+def _normalize_photo_entries(photos: Optional[List[Any]]) -> List[str]:
+    normalized: List[str] = []
+    for photo in photos or []:
+        if isinstance(photo, str) and photo:
+            normalized.append(photo)
+    return normalized[:PHOTO_DETAIL_LIMIT]
+
+def _detail_from_nearby_cache(place_id: str) -> Optional[dict]:
+    now = _utcnow()
+    for entry in nearby_cache.values():
+        if entry["expires_at"] <= now:
+            continue
+        payload = entry.get("value") or {}
+        for place in payload.get("results", []):
+            if str(place.get("id")) != str(place_id):
+                continue
+            photo_name = place.get("photo_name")
+            photo_entries = [photo_name] if photo_name else []
+            return {
+                "id": place.get("id"),
+                "name": place.get("name", ""),
+                "address": place.get("address", ""),
+                "latitude": place.get("latitude"),
+                "longitude": place.get("longitude"),
+                "category": _normalize_category(place.get("category")),
+                "rating": place.get("rating"),
+                "user_rating_count": place.get("user_rating_count", 0),
+                "phone": "",
+                "website": "",
+                "open_now": place.get("open_now"),
+                "photos": _normalize_photo_entries(photo_entries),
+                "image_url": place.get("image_url"),
+                "schedule": place.get("schedule"),
+                "schedule_text": [],
+                "tags": place.get("tags", []),
+                "google_reviews": [],
+                "source": "budget_cap_cached_summary",
+            }
+    return None
+
+
+def _google_places_enabled() -> bool:
+    # Keep development free by default unless explicitly overridden.
+    if os.environ.get("ENVIRONMENT", "development").strip().lower() == "development" and not ALLOW_LIVE_GOOGLE_IN_DEV:
+        return False
+    return bool(GOOGLE_MAPS_API_KEY) and ENABLE_LIVE_GOOGLE_PLACES and not DISABLE_LIVE_GOOGLE_PLACES
 
 
 # ----------------------------- Models -----------------------------
@@ -130,31 +383,172 @@ SAMPLE_REVIEWS_SHOP = [
 
 SEED_SHOPS = [
     {"id": "seed_1", "name": "Happy Tails Κομμωτήριο Κατοικιδίων", "address": "Ερμού 25, Αθήνα", "latitude": 37.9772, "longitude": 23.7290, "category": "groomer", "rating": 4.8, "user_rating_count": 214, "image_url": "https://images.unsplash.com/photo-1719464454959-9cf304ef4774?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210001", "website": "https://example.gr", "schedule": _sched(closed_days=(6,)), "reviews": SAMPLE_REVIEWS_GROOMER},
-    {"id": "seed_2", "name": "Pet City Κολωνάκι", "address": "Σκουφά 52, Κολωνάκι", "latitude": 37.9790, "longitude": 23.7400, "category": "both", "rating": 4.6, "user_rating_count": 132, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210002", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
+    {"id": "seed_2", "name": "Pet City Κολωνάκι", "address": "Σκουφά 52, Κολωνάκι", "latitude": 37.9790, "longitude": 23.7400, "category": "groomerShop", "rating": 4.6, "user_rating_count": 132, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210002", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
     {"id": "seed_3", "name": "Pampered Paws Spa", "address": "Πατησίων 110, Αθήνα", "latitude": 37.9930, "longitude": 23.7330, "category": "groomer", "rating": 4.9, "user_rating_count": 301, "image_url": "https://images.unsplash.com/photo-1611173622933-91942d394b04?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": False, "phone": "+30 210 3210003", "website": "https://example.gr", "schedule": _sched(closed_days=(0, 6)), "reviews": SAMPLE_REVIEWS_GROOMER},
-    {"id": "seed_4", "name": "Ζωοφιλία Pet Shop", "address": "Λ. Κηφισίας 18, Αμπελόκηποι", "latitude": 37.9870, "longitude": 23.7560, "category": "shop", "rating": 4.3, "user_rating_count": 89, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210004", "website": "https://example.gr", "schedule": _sched(closed_days=(6,)), "reviews": SAMPLE_REVIEWS_SHOP},
-    {"id": "seed_5", "name": "Furry Friends Boutique", "address": "Αδριανού 8, Μοναστηράκι", "latitude": 37.9760, "longitude": 23.7250, "category": "both", "rating": 4.5, "user_rating_count": 156, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210005", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
+    {"id": "seed_4", "name": "Ζωοφιλία Pet Shop", "address": "Λ. Κηφισίας 18, Αμπελόκηποι", "latitude": 37.9870, "longitude": 23.7560, "category": "shop", "rating": 4.3, "user_rating_count": 89, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210004", "website": "https://example.gr", "schedule": _sched(closed_days=(6,)), "reviews": SAMPLE_REVIEWS_SHOP, "tags": ["pharmacy"]},
+    {"id": "seed_5", "name": "Furry Friends Boutique", "address": "Αδριανού 8, Μοναστηράκι", "latitude": 37.9760, "longitude": 23.7250, "category": "groomerShop", "rating": 4.5, "user_rating_count": 156, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210005", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
     {"id": "seed_6", "name": "Pawsh Grooming Studio", "address": "Πλ. Βικτωρίας 3, Αθήνα", "latitude": 37.9930, "longitude": 23.7300, "category": "groomer", "rating": 4.7, "user_rating_count": 178, "image_url": "https://images.unsplash.com/photo-1719464454959-9cf304ef4774?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210006", "website": "https://example.gr", "schedule": _sched(closed_days=(0,)), "reviews": SAMPLE_REVIEWS_GROOMER},
+    {"id": "seed_7", "name": "PetPharm Κτηνιατρικό Φαρμακείο", "address": "Σταδίου 22, Αθήνα", "latitude": 37.9785, "longitude": 23.7335, "category": "pharmacy", "rating": 4.6, "user_rating_count": 94, "image_url": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210007", "website": "https://example.gr", "schedule": _sched(closed_days=(6,)), "reviews": SAMPLE_REVIEWS_SHOP},
+    {"id": "seed_8", "name": "Φαρμακείο Ζωής", "address": "Ακαδημίας 45, Αθήνα", "latitude": 37.9800, "longitude": 23.7380, "category": "pharmacy", "rating": 4.4, "user_rating_count": 61, "image_url": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": False, "phone": "+30 210 3210008", "website": "https://example.gr", "schedule": _sched(weekday="08:30-21:00", closed_days=(6,)), "reviews": SAMPLE_REVIEWS_SHOP},
+    {"id": "seed_9", "name": "Animal Health Pharmacy", "address": "Λ. Αλεξάνδρας 10, Αθήνα", "latitude": 37.9900, "longitude": 23.7500, "category": "pharmacy", "rating": 4.8, "user_rating_count": 143, "image_url": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210009", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
+    {"id": "seed_10", "name": "Κτηνιατρική Κλινική Αθηνών", "address": "Σόλωνος 60, Αθήνα", "latitude": 37.9825, "longitude": 23.7425, "category": "vet", "rating": 4.7, "user_rating_count": 188, "image_url": "https://images.unsplash.com/photo-1530023367847-a683933f4178?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210010", "website": "https://example.gr", "schedule": _sched(weekday="09:00-20:00", closed_days=(6,)), "reviews": SAMPLE_REVIEWS_GROOMER},
 ]
+
+SEED_CITY_CENTERS = {
+    "athens": {"latitude": 37.9838, "longitude": 23.7275, "label": "Athens"},
+    "αθήνα": {"latitude": 37.9838, "longitude": 23.7275, "label": "Αθήνα"},
+    "thessaloniki": {"latitude": 40.6401, "longitude": 22.9444, "label": "Thessaloniki"},
+    "θεσσαλονίκη": {"latitude": 40.6401, "longitude": 22.9444, "label": "Θεσσαλονίκη"},
+    "patra": {"latitude": 38.2466, "longitude": 21.7346, "label": "Patra"},
+    "πάτρα": {"latitude": 38.2466, "longitude": 21.7346, "label": "Πάτρα"},
+    "heraklion": {"latitude": 35.3387, "longitude": 25.1442, "label": "Heraklion"},
+    "ηράκλειο": {"latitude": 35.3387, "longitude": 25.1442, "label": "Ηράκλειο"},
+}
+
+
+def _seed_geocode(q: str) -> Dict[str, Any]:
+    query = (q or "").strip()
+    query_l = query.lower()
+    if not query_l:
+        return {"latitude": 37.9838, "longitude": 23.7275, "label": "Αθήνα", "source": "seed_default"}
+
+    for key, center in SEED_CITY_CENTERS.items():
+        if key in query_l:
+            return {
+                "latitude": center["latitude"],
+                "longitude": center["longitude"],
+                "label": center["label"],
+                "source": "seed_city",
+            }
+
+    matches = []
+    for s in SEED_SHOPS:
+        hay = f"{s.get('name', '')} {s.get('address', '')}".lower()
+        if query_l in hay:
+            matches.append((float(s["latitude"]), float(s["longitude"])))
+
+    if matches:
+        lat = sum(m[0] for m in matches) / len(matches)
+        lng = sum(m[1] for m in matches) / len(matches)
+        return {"latitude": lat, "longitude": lng, "label": query, "source": "seed_match"}
+
+    return {"latitude": 37.9838, "longitude": 23.7275, "label": query or "Αθήνα", "source": "seed_default"}
+
+
+def _seed_autocomplete(query: str) -> Dict[str, Any]:
+    q = (query or "").strip().lower()
+    if len(q) < 2:
+        return {"suggestions": [], "source": "seed"}
+
+    suggestions: List[Dict[str, Any]] = []
+    seen = set()
+
+    for key, center in SEED_CITY_CENTERS.items():
+        label_l = str(center.get("label", "")).lower()
+        if q in key or q in label_l:
+            desc = str(center.get("label", "")).strip()
+            if desc and desc not in seen:
+                seen.add(desc)
+                suggestions.append({
+                    "place_id": f"seed_city_{desc.lower()}",
+                    "description": desc,
+                    "main": desc,
+                    "secondary": "Greece",
+                })
+
+    for s in SEED_SHOPS:
+        name = str(s.get("name", "")).strip()
+        address = str(s.get("address", "")).strip()
+        hay = f"{name} {address}".lower()
+        if q not in hay:
+            continue
+        desc = address or name
+        if not desc or desc in seen:
+            continue
+        seen.add(desc)
+        suggestions.append({
+            "place_id": f"seed_{s.get('id')}",
+            "description": desc,
+            "main": desc,
+            "secondary": "Seed location",
+        })
+
+    suggestions.sort(key=lambda it: (0 if it["description"].lower().startswith(q) else 1, len(it["description"])))
+    return {"suggestions": suggestions[:8], "source": "seed"}
 
 
 def _classify(types, name):
     name_l = (name or "").lower()
     t = types or []
+    t_set = set(t)
+    vet_kw = ["vet", "veterinarian", "veterinary", "κτηνιάτρ", "veterinario", "pet clinic"]
     groom_kw = ["groom", "spa", "salon", "wash", "κομμωτ", "καλλωπ", "περιποί"]
     store_kw = ["shop", "store", "petshop", "είδη", "κατάστημα", "supplies", "pet_store"]
-    has_groom = any(w in name_l for w in groom_kw)
-    has_store = ("pet_store" in t) or any(w in name_l for w in store_kw)
+    pharma_kw = ["pharmacy", "φαρμακείο", "φαρμ", "ζωοφαρμακε", "pet pharma", "animal pharma", "veterinary pharma"]
+    vet_type_signals = {"veterinary_care", "veterinarian"}
+    groom_type_signals = {"pet_grooming_service", "grooming", "hair_care"}
+    store_type_signals = {"pet_store", "store"}
+    pharmacy_type_signals = {"pharmacy", "drugstore"}
+    has_vet = bool(t_set & vet_type_signals) or any(w in name_l for w in vet_kw)
+    has_groom = bool(t_set & groom_type_signals) or any(w in name_l for w in groom_kw)
+    has_store = bool(t_set & store_type_signals) or any(w in name_l for w in store_kw)
+    has_pharma = bool(t_set & pharmacy_type_signals) or any(w in name_l for w in pharma_kw)
+    # Primary category: pet-specific signals win over pharmacy.
+    # Only classify as pharmacy when there are no other pet-specific signals.
+    if has_vet:
+        return "vet"
     if has_groom and has_store:
-        return "both"
+        return "groomerShop"
     if has_groom:
         return "groomer"
+    if has_store:
+        return "shop"
+    if has_pharma:
+        return "pharmacy"
     return "shop"
+
+
+def _get_tags(types, name) -> list:
+    """Secondary tags that can apply on top of any primary category."""
+    name_l = (name or "").lower()
+    t = types or []
+    pharma_kw = ["pharmacy", "φαρμακείο", "φαρμ", "ζωοφαρμακε", "pet pharma", "animal pharma", "veterinary pharma"]
+    tags = []
+    if ("pharmacy" in t) or any(w in name_l for w in pharma_kw):
+        tags.append("pharmacy")
+    return tags
+
+
+def _normalize_category(cat: Optional[str]) -> str:
+    if cat == "both":
+        return "groomerShop"
+    return cat or "shop"
 
 
 def _seed_card(s):
     return {k: s[k] for k in ["id", "name", "address", "latitude", "longitude", "category",
-                              "rating", "user_rating_count", "image_url", "open_now"]} | {"schedule": s["schedule"]}
+                              "rating", "user_rating_count", "image_url", "open_now"]} | {
+        "schedule": s["schedule"],
+        "tags": s.get("tags", []),
+    }
+
+
+def _matches_category(place_cat: Optional[str], place_tags: list, selected_cats: list) -> bool:
+    place_cat = _normalize_category(place_cat)
+    if "all" in selected_cats:
+        return True
+    for c in selected_cats:
+        if c == "groomer" and place_cat == "groomer":
+            return True
+        if c == "shop" and place_cat == "shop":
+            return True
+        if c == "groomerShop" and place_cat == "groomerShop":
+            return True
+        if c == "vet" and place_cat == "vet":
+            return True
+        if c == "pharmacy" and (place_cat == "pharmacy" or "pharmacy" in place_tags):
+            return True
+    return False
 
 
 def _periods_to_schedule(periods):
@@ -186,6 +580,10 @@ def _periods_to_schedule(periods):
 
 
 async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
+    reason = _budget_reason("text_search")
+    if reason:
+        _record_budget_block("text_search", reason)
+        raise HTTPException(status_code=503, detail=_budget_cap_detail("places search", "text_search"))
     url = "https://places.googleapis.com/v1/places:searchText"
     field_mask = ("places.id,places.displayName,places.formattedAddress,places.location,"
                   "places.types,places.rating,places.userRatingCount,places.photos,"
@@ -200,6 +598,7 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
     headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY, "X-Goog-FieldMask": field_mask}
     async with httpx.AsyncClient(timeout=15.0) as hc:
         resp = await hc.post(url, json=payload, headers=headers)
+    _record_google_call("text_search")
     if resp.status_code != 200:
         logger.error("Google places error %s: %s", resp.status_code, resp.text[:300])
         raise HTTPException(status_code=502, detail="Places provider error")
@@ -209,24 +608,50 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
         name = p.get("displayName", {}).get("text", "")
         photos = p.get("photos", [])
         loc = p.get("location", {})
+        p_types = p.get("types", [])
+        cat = _classify(p_types, name)
         out.append({
             "id": p.get("id"), "name": name, "address": p.get("formattedAddress", ""),
             "latitude": loc.get("latitude"), "longitude": loc.get("longitude"),
-            "category": _classify(p.get("types"), name), "rating": p.get("rating"),
+            "category": cat, "rating": p.get("rating"),
             "user_rating_count": p.get("userRatingCount", 0),
             "photo_name": photos[0]["name"] if photos else None, "image_url": None,
             "open_now": p.get("currentOpeningHours", {}).get("openNow"),
             "schedule": _periods_to_schedule(p.get("regularOpeningHours", {}).get("periods")),
+            "tags": _get_tags(p_types, name),
         })
     return out, data.get("nextPageToken")
+
+
+async def _google_text_search_for_category(query, lat, lng, radius, lang, category: Optional[str], page_token=None):
+    out, token = await _google_text_search(query, lat, lng, radius, lang, page_token)
+    if not category or category == "all":
+        return out, token
+    normalized_category = _normalize_category(category)
+    for item in out:
+        item["category"] = normalized_category
+    return out, token
 
 
 @api_router.get("/places/autocomplete")
 async def places_autocomplete(input: str, lang: str = "el",
                               lat: Optional[float] = None, lng: Optional[float] = None):
     """Google Places Autocomplete (New) -> location suggestions for the search box."""
-    if not (GOOGLE_MAPS_API_KEY and input.strip()):
+    query = input.strip()
+    if len(query) < 2:
         return {"suggestions": []}
+
+    if not _google_places_enabled():
+        return _seed_autocomplete(query)
+
+    cache_key = (input.strip().lower()[:80], lang, _rounded_coord(lat), _rounded_coord(lng))
+    cached = _cache_get(autocomplete_cache, cache_key, "autocomplete")
+    if cached is not None:
+        return cached
+    reason = _budget_reason("autocomplete")
+    if reason:
+        _record_budget_block("autocomplete", reason)
+        return _seed_autocomplete(query) | {"source": "budget_cap_seed"}
     url = "https://places.googleapis.com/v1/places:autocomplete"
     body = {"input": input, "languageCode": lang, "includedRegionCodes": ["gr"]}
     if lat is not None and lng is not None:
@@ -234,9 +659,10 @@ async def places_autocomplete(input: str, lang: str = "el",
     headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY}
     async with httpx.AsyncClient(timeout=10.0) as hc:
         resp = await hc.post(url, json=body, headers=headers)
+    _record_google_call("autocomplete")
     if resp.status_code != 200:
         logger.error("Autocomplete error %s: %s", resp.status_code, resp.text[:200])
-        return {"suggestions": []}
+        return _seed_autocomplete(query) | {"source": "seed_fallback"}
     out = []
     for s in resp.json().get("suggestions", []):
         pp = s.get("placePrediction")
@@ -249,99 +675,177 @@ async def places_autocomplete(input: str, lang: str = "el",
             "main": sf.get("mainText", {}).get("text", ""),
             "secondary": sf.get("secondaryText", {}).get("text", ""),
         })
-    return {"suggestions": out}
+    response = {"suggestions": out, "source": "google"}
+    _cache_put(autocomplete_cache, cache_key, response, AUTOCOMPLETE_CACHE_TTL_SECONDS)
+    return response
 
 
 @api_router.get("/places/geocode")
 async def geocode(q: str, lang: str = "el"):
-    if GOOGLE_MAPS_API_KEY and q.strip():
+    cache_key = (q.strip().lower()[:120], lang)
+    cached = _cache_get(geocode_cache, cache_key, "geocode")
+    if cached is not None:
+        return cached
+    if _google_places_enabled() and q.strip():
+        reason = _budget_reason("geocode")
+        if reason:
+            _record_budget_block("geocode", reason)
+            fallback = {"latitude": 37.9838, "longitude": 23.7275, "label": q or "Αθήνα", "source": "budget_cap"}
+            _cache_put(geocode_cache, cache_key, fallback, GEOCODE_CACHE_TTL_SECONDS)
+            return fallback
         url = "https://maps.googleapis.com/maps/api/geocode/json"
         params = {"address": q, "key": GOOGLE_MAPS_API_KEY, "language": lang}
         async with httpx.AsyncClient(timeout=15.0) as hc:
             resp = await hc.get(url, params=params)
+        _record_google_call("geocode")
         data = resp.json()
         if data.get("results"):
             r = data["results"][0]
             loc = r["geometry"]["location"]
-            return {"latitude": loc["lat"], "longitude": loc["lng"], "label": r.get("formatted_address", q)}
-    # Fallback: Athens center
-    return {"latitude": 37.9838, "longitude": 23.7275, "label": q or "Αθήνα"}
+            response = {"latitude": loc["lat"], "longitude": loc["lng"], "label": r.get("formatted_address", q)}
+            _cache_put(geocode_cache, cache_key, response, GEOCODE_CACHE_TTL_SECONDS)
+            return response
+    fallback = _seed_geocode(q)
+    _cache_put(geocode_cache, cache_key, fallback, GEOCODE_CACHE_TTL_SECONDS)
+    return fallback
 
 
 @api_router.get("/places/nearby")
 async def places_nearby(lat: float, lng: float, radius: int = 8000,
-                        category: Literal["all", "shop", "groomer", "both"] = "all",
+                        category: str = "all",
                         day: int = -1, lang: str = "el", page_token: Optional[str] = None):
-    if GOOGLE_MAPS_API_KEY:
-        query = {"groomer": "pet groomer", "shop": "pet store",
-                 "both": "pet store and grooming"}.get(category, "pet store and pet groomer")
-        results, next_token = await _google_text_search(query, lat, lng, radius, lang, page_token)
-        # Filter by category. "both" must show ONLY combo stores; groomer/shop also include "both".
-        if category == "groomer":
-            results = [r for r in results if r["category"] in ("groomer", "both")]
-        elif category == "shop":
-            results = [r for r in results if r["category"] in ("shop", "both")]
-        elif category == "both":
-            results = [r for r in results if r["category"] == "both"]
-        return {"results": results, "next_page_token": next_token, "source": "google"}
-    # Seed fallback — selecting groomer/shop also includes "both" stores
-    def _matches(scat, q):
-        if q == "all":
-            return True
-        if q == "both":
-            return scat == "both"
-        if q == "groomer":
-            return scat in ("groomer", "both")
-        if q == "shop":
-            return scat in ("shop", "both")
-        return True
+    # Handle comma-separated categories (multi-select)
+    categories = [c.strip() for c in category.split(",") if c.strip()]
+    if not categories:
+        categories = ["all"]
+    
+    # Validate categories
+    valid_cats = {"all", "shop", "groomer", "groomerShop", "vet", "pharmacy"}
+    for c in categories:
+        if c not in valid_cats:
+            raise HTTPException(status_code=400, detail=f"Invalid category: {c}")
 
+    if _google_places_enabled():
+        target_categories = ["groomer", "shop", "groomerShop", "vet", "pharmacy"] if "all" in categories else categories
+        cache_key = (
+            _rounded_coord(lat),
+            _rounded_coord(lng),
+            min(radius, 50000),
+            ",".join(sorted(target_categories)),
+            day,
+            lang,
+            page_token or "",
+        )
+        cached = _cache_get(nearby_cache, cache_key, "nearby")
+        if cached is not None:
+            return cached
+
+        reason = _budget_reason("text_search")
+        if reason:
+            _record_budget_block("text_search", reason)
+            return {"results": [], "next_page_token": None, "source": "budget_cap"}
+
+        query = _combined_category_query(target_categories)
+        forced_category = target_categories[0] if len(target_categories) == 1 else None
+        merged, merged_next = await _google_text_search_for_category(
+            query,
+            lat,
+            lng,
+            radius,
+            lang,
+            forced_category,
+            page_token,
+        )
+
+        results = []
+        for r in merged:
+            r["category"] = _normalize_category(r.get("category"))
+            if _matches_category(r["category"], r.get("tags", []), categories):
+                results.append(r)
+
+        response = {"results": results, "next_page_token": merged_next, "source": "google"}
+        _cache_put(nearby_cache, cache_key, response, NEARBY_CACHE_TTL_SECONDS)
+        return response
+    
+    # Seed fallback — select places matching any of the categories
     results = []
     for s in SEED_SHOPS:
-        if not _matches(s["category"], category):
+        s_cat = _normalize_category(s["category"])
+        s_tags = s.get("tags", [])
+        if not _matches_category(s_cat, s_tags, categories):
             continue
         if 0 <= day <= 6 and s["schedule"][day]["closed"]:
             continue
-        results.append(_seed_card(s))
+        card = _seed_card(s)
+        card["category"] = s_cat
+        results.append(card)
     return {"results": results, "next_page_token": None, "source": "seed"}
 
 
 @api_router.get("/places/photo")
 async def place_photo(name: str, max_width: int = 800):
-    if not GOOGLE_MAPS_API_KEY:
+    if not _google_places_enabled():
         raise HTTPException(status_code=404, detail="No provider")
+    cache_key = (name, max(200, min(max_width, 1600)))
+    cached = _cache_get(photo_cache, cache_key, "photo")
+    if cached is not None:
+        return Response(content=cached["content"], media_type=cached["media_type"], headers=PHOTO_RESPONSE_HEADERS)
+    reason = _budget_reason("photo")
+    if reason:
+        _record_budget_block("photo", reason)
+        raise HTTPException(status_code=503, detail=_budget_cap_detail("photo", "photo"))
     url = f"https://places.googleapis.com/v1/{name}/media"
-    params = {"key": GOOGLE_MAPS_API_KEY, "maxWidthPx": max_width}
+    params = {"key": GOOGLE_MAPS_API_KEY, "maxWidthPx": cache_key[1]}
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as hc:
         resp = await hc.get(url, params=params)
+    _record_google_call("photo")
     if resp.status_code != 200:
         logger.error("Photo error %s: %s", resp.status_code, resp.text[:200])
         raise HTTPException(status_code=502, detail="Photo error")
-    return StreamingResponse(iter([resp.content]), media_type=resp.headers.get("Content-Type", "image/jpeg"))
+    media_type = resp.headers.get("Content-Type", "image/jpeg")
+    payload = {"content": resp.content, "media_type": media_type}
+    _cache_put(photo_cache, cache_key, payload, PHOTO_CACHE_TTL_SECONDS)
+    return Response(content=resp.content, media_type=media_type, headers=PHOTO_RESPONSE_HEADERS)
 
 
 @api_router.get("/places/{place_id}")
 async def place_details(place_id: str, lang: str = "el"):
+    cache_key = (place_id, lang)
+    cached = _cache_get(detail_cache, cache_key, "details")
+    if cached is not None:
+        return cached
     if place_id.startswith("seed_"):
         s = next((x for x in SEED_SHOPS if x["id"] == place_id), None)
         if not s:
             raise HTTPException(status_code=404, detail="Not found")
-        return {
+        response = {
             "id": s["id"], "name": s["name"], "address": s["address"],
-            "latitude": s["latitude"], "longitude": s["longitude"], "category": s["category"],
+            "latitude": s["latitude"], "longitude": s["longitude"], "category": _normalize_category(s["category"]),
             "rating": s["rating"], "user_rating_count": s["user_rating_count"],
             "phone": s["phone"], "website": s["website"], "open_now": s["open_now"],
-            "image_url": s["image_url"], "photos": [s["image_url"]],
+            "image_url": s["image_url"], "photos": _normalize_photo_entries([s["image_url"]]),
             "schedule": s["schedule"], "schedule_text": None,
+            "tags": s.get("tags", []),
             "google_reviews": s["reviews"],
         }
-    if GOOGLE_MAPS_API_KEY:
+        _cache_put(detail_cache, cache_key, response, DETAIL_CACHE_TTL_SECONDS)
+        return response
+    if _google_places_enabled():
+        reason = _budget_reason("place_details")
+        if reason:
+            _record_budget_block("place_details", reason)
+            fallback = _detail_from_nearby_cache(place_id)
+            if fallback:
+                _cache_put(detail_cache, cache_key, fallback, DETAIL_CACHE_TTL_SECONDS)
+                return fallback
+            raise HTTPException(status_code=503, detail=_budget_cap_detail("place details", "place_details"))
         url = f"https://places.googleapis.com/v1/places/{place_id}"
         field_mask = ("id,displayName,formattedAddress,location,types,rating,userRatingCount,"
                       "internationalPhoneNumber,websiteUri,reviews,photos,regularOpeningHours,currentOpeningHours")
         headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY, "X-Goog-FieldMask": field_mask}
         async with httpx.AsyncClient(timeout=15.0) as hc:
             resp = await hc.get(url, headers=headers, params={"languageCode": lang})
+        _record_google_call("place_details")
         if resp.status_code != 200:
             raise HTTPException(status_code=502, detail="Places provider error")
         p = resp.json()
@@ -349,22 +853,55 @@ async def place_details(place_id: str, lang: str = "el"):
         loc = p.get("location", {})
         oh = p.get("regularOpeningHours", {})
         cur = p.get("currentOpeningHours", {})
-        return {
+        response = {
             "id": p.get("id"), "name": name, "address": p.get("formattedAddress", ""),
             "latitude": loc.get("latitude"), "longitude": loc.get("longitude"),
             "category": _classify(p.get("types"), name), "rating": p.get("rating"),
             "user_rating_count": p.get("userRatingCount", 0),
             "phone": p.get("internationalPhoneNumber", ""), "website": p.get("websiteUri", ""),
             "open_now": cur.get("openNow") if cur.get("openNow") is not None else oh.get("openNow"),
-            "photos": [ph["name"] for ph in p.get("photos", [])[:6]], "image_url": None,
+            "photos": [ph["name"] for ph in p.get("photos", [])[:PHOTO_DETAIL_LIMIT]], "image_url": None,
             "schedule": _periods_to_schedule(oh.get("periods")), "schedule_text": oh.get("weekdayDescriptions", []),
+            "tags": _get_tags(p.get("types", []), name),
             "google_reviews": [
                 {"author": r.get("authorAttribution", {}).get("displayName", "Google"),
                  "rating": r.get("rating"), "text": r.get("text", {}).get("text", "")}
                 for r in p.get("reviews", [])[:6]
             ],
         }
+        _cache_put(detail_cache, cache_key, response, DETAIL_CACHE_TTL_SECONDS)
+        return response
     raise HTTPException(status_code=404, detail="Not found")
+
+
+@api_router.get("/metrics/google-usage")
+async def google_usage_metrics():
+    _ensure_metrics_enabled()
+    return _google_usage_payload()
+
+
+@api_router.post("/metrics/google-usage/reset")
+async def reset_google_usage_metrics():
+    _ensure_metrics_enabled()
+    GOOGLE_USAGE_WINDOW["date"] = _utcnow().date().isoformat()
+    GOOGLE_USAGE_WINDOW["calls"] = 0
+    GOOGLE_USAGE_WINDOW["spent_eur"] = 0.0
+    for metric in GOOGLE_CALL_METRICS:
+        GOOGLE_CALL_METRICS[metric] = 0
+    BLOCKED_METRICS["total"] = 0
+    BLOCKED_METRICS["calls_cap"] = 0
+    BLOCKED_METRICS["eur_cap"] = 0
+    for endpoint in BLOCKED_METRICS["by_endpoint"]:
+        BLOCKED_METRICS["by_endpoint"][endpoint] = 0
+    for metric in CACHE_METRICS.values():
+        metric["hits"] = 0
+        metric["misses"] = 0
+    nearby_cache.clear()
+    detail_cache.clear()
+    autocomplete_cache.clear()
+    geocode_cache.clear()
+    photo_cache.clear()
+    return JSONResponse({"ok": True, "usage": _google_usage_payload()})
 
 
 # ----------------------------- Favorites (server, optional auth) -----------------------------
@@ -391,7 +928,15 @@ async def toggle_favorite(body: FavoriteToggle, authorization: Optional[str] = H
 
 @api_router.get("/")
 async def root():
-    return {"message": "GR-oom It API", "places_provider": "google" if GOOGLE_MAPS_API_KEY else "seed"}
+    is_dev = os.environ.get("ENVIRONMENT", "development").strip().lower() == "development"
+    return {
+        "message": "PawFind API",
+        "places_provider": "google" if _google_places_enabled() else "seed",
+        "seed_first": not _google_places_enabled(),
+        "live_google_enabled": _google_places_enabled(),
+        "live_google_disabled": DISABLE_LIVE_GOOGLE_PLACES,
+        "dev_live_google_locked": is_dev and not ALLOW_LIVE_GOOGLE_IN_DEV,
+    }
 
 
 app.include_router(api_router)

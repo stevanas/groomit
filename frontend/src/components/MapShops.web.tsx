@@ -5,6 +5,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, shadow } from "@/src/theme";
 import { photoUrl } from "@/src/api";
 
+const catIcon = (c?: string) =>
+  c === "groomer" ? "cut" : (c === "groomerShop" || c === "both") ? "ribbon" : c === "vet" ? "medkit" : c === "pharmacy" ? "add" : "storefront";
+
+const catLabel = (c?: string) =>
+  c === "groomer" ? "Groomer" : (c === "groomerShop" || c === "both") ? "Groomer & Shop" : c === "vet" ? "Vet" : c === "pharmacy" ? "Pharmacy" : "Pet Shop";
+
 // Web fallback for react-native-maps (no web support).
 // Renders a stylized "map" panel listing shop pins.
 export default function MapShops({ shops, onSelect }: { shops: any[]; onSelect?: (s: any) => void }) {
@@ -17,10 +23,13 @@ export default function MapShops({ shops, onSelect }: { shops: any[]; onSelect?:
       <ScrollView style={styles.pinList} contentContainerStyle={{ padding: spacing.lg, paddingTop: 140, paddingBottom: 220 }}>
         {shops.map((s) => (
           <Pressable key={s.id} style={styles.pinCard} onPress={() => onSelect?.(s)} testID={`map-pin-${s.id}`}>
-            <Image source={{ uri: photoUrl(s) || undefined }} style={styles.pinImg} contentFit="cover" />
+            <Image source={{ uri: photoUrl(s, { size: "preview" }) || undefined }} style={styles.pinImg} contentFit="cover" />
             <View style={{ flex: 1 }}>
               <Text style={styles.pinName} numberOfLines={1}>{s.name}</Text>
-              <Text style={styles.pinMeta}>{s.category === "groomer" ? "Groomer" : "Pet Shop"} · ★ {s.rating ?? "–"}</Text>
+              <View style={styles.pinMetaRow}>
+                <Ionicons name={catIcon(s.category) as any} size={13} color={colors.brand} />
+                <Text style={styles.pinMeta}>{catLabel(s.category)} · ★ {s.rating ?? "–"}</Text>
+              </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.muted} />
           </Pressable>
@@ -38,5 +47,6 @@ const styles = StyleSheet.create({
   pinCard: { flexDirection: "row", alignItems: "center", backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.md, gap: spacing.md, ...shadow.card },
   pinImg: { width: 56, height: 56, borderRadius: radius.sm, backgroundColor: colors.surfaceTertiary },
   pinName: { fontSize: 15, fontWeight: "700", color: colors.onSurface },
-  pinMeta: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  pinMetaRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+  pinMeta: { fontSize: 13, color: colors.muted },
 });

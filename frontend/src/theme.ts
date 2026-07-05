@@ -62,9 +62,12 @@ export const fonts = {
 // Per-category colors (used on labels, list tags, map pins, detail badge).
 // Distinct, readable, and intentionally NOT the brand orange.
 export const categoryColor: Record<string, { main: string; on: string; soft: string; onSoft: string }> = {
-  groomer: { main: "#2E8B83", on: "#FFFFFF", soft: "#DCEEEC", onSoft: "#1F5F59" },
+  groomer: { main: "#D94C9A", on: "#FFFFFF", soft: "#FBE1F0", onSoft: "#8A1F59" },
   shop: { main: "#3D6FB4", on: "#FFFFFF", soft: "#DEE8F5", onSoft: "#264C7E" },
-  both: { main: "#B5527E", on: "#FFFFFF", soft: "#F6DDE8", onSoft: "#7E2E50" },
+  vet: { main: "#D64545", on: "#FFFFFF", soft: "#FBE3E3", onSoft: "#8D2020" },
+  groomerShop: { main: "#7B52C7", on: "#FFFFFF", soft: "#EEE7FA", onSoft: "#4A2D86" },
+  both: { main: "#7B52C7", on: "#FFFFFF", soft: "#EEE7FA", onSoft: "#4A2D86" },
+  pharmacy: { main: "#1A7A4C", on: "#FFFFFF", soft: "#D1F0E2", onSoft: "#0F4D30" },
 };
 
 export const getCat = (c?: string) => categoryColor[c || "shop"] || categoryColor.shop;

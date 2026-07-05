@@ -23,7 +23,7 @@ export default function MapScreen() {
   const center =
     params.lat && params.lng ? { latitude: Number(params.lat), longitude: Number(params.lng) } : undefined;
 
-  const { shops, region, loading } = useShops(params.category || "all", { lang, center });
+  const { shops, region, loading } = useShops("all", { lang, center, disablePagination: true });
   const [selected, setSelected] = useState<any>(null);
 
   const cat = selected ? getCat(selected.category) : null;
@@ -56,7 +56,7 @@ export default function MapScreen() {
       {selected && (
         <View style={[styles.cardWrap, { paddingBottom: insets.bottom + spacing.md }]}>
           <Pressable style={styles.card} onPress={() => router.push(`/shop/${selected.id}`)} testID="map-shop-card">
-            <Image source={{ uri: photoUrl(selected) || undefined }} style={styles.cardImg} contentFit="cover" />
+            <Image source={{ uri: photoUrl(selected, { size: "preview" }) || undefined }} style={styles.cardImg} contentFit="cover" />
             <View style={styles.cardBody}>
               <Text style={styles.cardName} numberOfLines={1}>{selected.name}</Text>
               <View style={styles.cardMeta}>

@@ -17,7 +17,6 @@ import { spacing, radius, shadow, fonts, getCat, ThemeColors } from "@/src/theme
 import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
-
 function Stars({ value, size = 14 }: { value: number; size?: number }) {
   const { colors } = useTheme();
   return (
@@ -44,6 +43,7 @@ export default function ShopDetail() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [galleryExpanded, setGalleryExpanded] = useState(false);
   const [userLoc, setUserLoc] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
@@ -77,6 +77,13 @@ export default function ShopDetail() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    setGalleryExpanded(false);
+    setGalleryIndex(0);
+    setViewerIndex(0);
+    setViewerOpen(false);
+  }, [shop?.id]);
+
   const toggleFav = async () => {
     if (!shop) return;
     setFav(await toggleFavorite(shop));
@@ -94,19 +101,27 @@ export default function ShopDetail() {
     );
   }
 
-  const heroUri = photoUrl(shop) || (shop.photos?.[0] ? photoUrl({ photo_name: shop.photos[0] }) : null);
+  const detailPhotoEntries = Array.isArray(shop.photos) ? shop.photos.filter((entry: any) => typeof entry === "string" && entry) : [];
+  const heroUri =
+    photoUrl(shop, { size: "preview" }) ||
+    (detailPhotoEntries[0] ? photoUrl({ photo_name: detailPhotoEntries[0] }, { size: "preview" }) : null);
   const distLabel = userLoc
     ? formatDistance(distanceKm(userLoc, shop.latitude, shop.longitude), t("browse.km"), t("browse.m"))
     : null;
   const galleryPhotos: string[] = (
-    shop.photos && shop.photos.length
-      ? shop.photos.map((n: string) => photoUrl({ photo_name: n })).filter(Boolean)
+    galleryExpanded
+      ? detailPhotoEntries
+          .slice(0, 3)
+          .map((entry: string, index: number) => photoUrl({ photo_name: entry }, { size: index === 0 ? "preview" : "full" }))
+          .filter(Boolean)
       : [heroUri].filter(Boolean)
   ) as string[];
   const googleReviews = shop.google_reviews || [];
   const cat = getCat(shop.category);
-  const catIconName = shop.category === "groomer" ? "cut" : shop.category === "both" ? "ribbon" : "storefront";
-  const catLabelKey = shop.category === "groomer" ? "type.groomer" : shop.category === "both" ? "type.bothFull" : "type.shop";
+  const pharmacyTag = getCat("pharmacy");
+  const hasPharmacyTag = (shop.tags || []).includes("pharmacy") && shop.category !== "pharmacy";
+  const catIconName = shop.category === "groomer" ? "cut" : shop.category === "groomerShop" ? "ribbon" : shop.category === "vet" ? "medkit" : shop.category === "pharmacy" ? "add" : "storefront";
+  const catLabelKey = shop.category === "groomer" ? "type.groomer" : shop.category === "groomerShop" ? "type.groomerShop" : shop.category === "vet" ? "type.vet" : shop.category === "pharmacy" ? "type.pharmacy" : "type.shop";
   const todayIdx = (new Date().getDay() + 6) % 7;
 
   const scheduleRows: { label: string; value: string; today: boolean }[] = [];
@@ -129,39 +144,27 @@ export default function ShopDetail() {
     <View style={styles.container} testID="shop-detail">
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <FlatList
-            data={galleryPhotos}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(_, i) => String(i)}
-            onMomentumScrollEnd={(e) =>
-              setGalleryIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))
-            }
-            renderItem={({ item, index }) => (
-              <Pressable
-                onPress={() => { setViewerIndex(index); setViewerOpen(true); }}
-                testID={`gallery-photo-${index}`}
-              >
-                <Image source={{ uri: item }} style={styles.heroImg} contentFit="cover" />
-              </Pressable>
-            )}
-          />
+          <Pressable
+            onPress={() => {
+              setGalleryExpanded(true);
+              setViewerIndex(0);
+              setViewerOpen(true);
+            }}
+            disabled={!heroUri}
+            testID="gallery-photo-0"
+          >
+            <Image source={{ uri: heroUri || undefined }} style={styles.heroImg} contentFit="cover" />
+          </Pressable>
           <LinearGradient
             colors={["rgba(42,33,28,0.45)", "transparent", "rgba(42,33,28,0.55)"]}
             style={StyleSheet.absoluteFill}
             pointerEvents="none"
           />
-          {galleryPhotos.length > 1 && (
+          {detailPhotoEntries.length > 1 && (
             <>
-              <View style={styles.dots} pointerEvents="none">
-                {galleryPhotos.map((_, i) => (
-                  <View key={i} style={[styles.dot, i === galleryIndex && styles.dotActive]} />
-                ))}
-              </View>
               <View style={styles.countBadge} pointerEvents="none">
                 <Ionicons name="images" size={13} color="#fff" />
-                <Text style={styles.countText}>{galleryIndex + 1}/{galleryPhotos.length}</Text>
+                <Text style={styles.countText}>1/{Math.min(detailPhotoEntries.length, 3)}</Text>
               </View>
             </>
           )}
@@ -181,6 +184,12 @@ export default function ShopDetail() {
               <Ionicons name={catIconName as any} size={15} color={cat.onSoft} />
               <Text style={[styles.catPillText, { color: cat.onSoft }]}>{t(catLabelKey)}</Text>
             </View>
+            {hasPharmacyTag && (
+              <View style={[styles.catPill, { backgroundColor: pharmacyTag.soft }]}> 
+                <Ionicons name="add" size={15} color={pharmacyTag.onSoft} />
+                <Text style={[styles.catPillText, { color: pharmacyTag.onSoft }]}>{t("type.pharmacy")}</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.ratingRow}>
@@ -312,7 +321,7 @@ export default function ShopDetail() {
       </View>
 
       {/* Full-screen photo viewer */}
-      <Modal visible={viewerOpen} transparent animationType="fade" onRequestClose={() => setViewerOpen(false)}>
+      <Modal visible={viewerOpen} animationType="fade" onRequestClose={() => setViewerOpen(false)}>
         <View style={styles.viewer}>
           <FlatList
             data={galleryPhotos}
@@ -363,7 +372,7 @@ const makeStyles = (colors: ThemeColors) =>
   dotActive: { backgroundColor: "#fff", width: 18 },
   countBadge: { position: "absolute", bottom: 30, right: spacing.lg, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill },
   countText: { color: "#fff", fontSize: 12, fontWeight: "800" },
-  viewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)" },
+  viewer: { flex: 1, backgroundColor: "#000" },
   viewerPage: { width: SCREEN_W, height: SCREEN_H, alignItems: "center", justifyContent: "center" },
   viewerImg: { width: SCREEN_W, height: SCREEN_H * 0.85 },
   viewerClose: { position: "absolute", right: spacing.lg, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },

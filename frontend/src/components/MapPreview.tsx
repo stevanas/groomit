@@ -5,6 +5,7 @@ import MapShops from "@/src/components/MapShops";
 import { useI18n } from "@/src/i18n";
 import { spacing, radius, shadow, ThemeColors } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
+import { mapsDisabled } from "@/src/feature-flags";
 
 // A non-interactive map card that expands to the full /map screen on tap.
 export default function MapPreview({
@@ -25,6 +26,18 @@ export default function MapPreview({
   const { t } = useI18n();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+
+  if (mapsDisabled) {
+    return (
+      <View style={styles.card} testID={testID}>
+        <View style={styles.disabledCenter}>
+          <Ionicons name="map-outline" size={28} color={colors.muted} />
+          <Text style={styles.disabledText}>Map preview is off while spend controls are active.</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.card}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -49,6 +62,8 @@ const makeStyles = (colors: ThemeColors) =>
     backgroundColor: colors.surfaceTertiary,
     ...shadow.card,
   },
+  disabledCenter: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8, padding: spacing.lg },
+  disabledText: { color: colors.muted, fontSize: 13, fontWeight: "700", textAlign: "center" },
   badge: {
     position: "absolute",
     right: spacing.sm,

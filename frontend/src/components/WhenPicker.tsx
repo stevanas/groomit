@@ -76,9 +76,9 @@ export default function WhenPicker({
   return (
     <>
       <Pressable style={styles.field} onPress={() => setOpen(true)} testID={testID}>
-        <Ionicons name="calendar" size={18} color={colors.brand} />
+        <Ionicons name="calendar" size={20} color={colors.brand} />
         <Text style={styles.fieldValue} numberOfLines={1}>{label()}</Text>
-        <Ionicons name="chevron-down" size={18} color={colors.muted} />
+        <Ionicons name="chevron-down" size={20} color={colors.muted} />
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -152,8 +152,8 @@ export default function WhenPicker({
 
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-  field: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: spacing.md, height: 52 },
-  fieldValue: { flex: 1, fontSize: 16, fontWeight: "700", color: colors.onSurface },
+  field: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: spacing.lg, height: 60 },
+  fieldValue: { flex: 1, fontSize: 18, fontWeight: "700", color: colors.onSurface },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: "70%", paddingVertical: spacing.sm },
   optionRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },

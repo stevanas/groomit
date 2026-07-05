@@ -2,15 +2,16 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { spacing, radius, shadow, getCat, ThemeColors } from "@/src/theme";
+import { spacing, radius, shadow, getCat, ThemeColors, categoryColor } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
 import { photoUrl } from "@/src/api";
 import { useI18n } from "@/src/i18n";
 import { formatDistance } from "@/src/utils/distance";
 
 const catLabelKey = (c?: string) =>
-  c === "groomer" ? "common.groomer" : c === "both" ? "common.both" : "common.shop";
-const catIcon = (c?: string) => (c === "groomer" ? "cut" : c === "both" ? "ribbon" : "storefront");
+  c === "groomer" ? "common.groomer" : (c === "groomerShop" || c === "both") ? "common.groomerShop" : c === "vet" ? "common.vet" : c === "pharmacy" ? "common.pharmacy" : "common.shop";
+const catIcon = (c?: string) =>
+  c === "groomer" ? "cut" : (c === "groomerShop" || c === "both") ? "ribbon" : c === "vet" ? "medkit" : c === "pharmacy" ? "add" : "storefront";
 
 const TODAY_IDX = (new Date().getDay() + 6) % 7;
 
@@ -18,12 +19,13 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
   const { t } = useI18n();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const uri = photoUrl(shop);
+  const uri = photoUrl(shop, { size: "preview" });
   const cat = getCat(shop.category);
   const today = shop.schedule?.[TODAY_IDX];
   const is24h = today && !today.closed && today.open === "00:00" && today.close === "23:59";
   const closesAt = today && !today.closed && today.close && !is24h ? today.close : null;
   const distLabel = formatDistance(shop.distanceKm, t("browse.km"), t("browse.m"));
+  const hasPharmacyTag = (shop.tags || []).includes("pharmacy") && shop.category !== "pharmacy";
   return (
     <Pressable style={styles.card} onPress={onPress} testID={`shop-card-${shop.id}`}>
       <View>
@@ -51,12 +53,17 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
           <View style={styles.metaLeft}>
             <View style={[styles.tag, { backgroundColor: cat.soft }]}>
               <Ionicons name={catIcon(shop.category)} size={12} color={cat.onSoft} />
-              <Text style={[styles.tagText, { color: cat.onSoft }]}>{t(catLabelKey(shop.category))}</Text>
+              <Text style={[styles.tagText, { color: cat.onSoft }]} numberOfLines={1} ellipsizeMode="tail">
+                {t(catLabelKey(shop.category))}
+              </Text>
+              {hasPharmacyTag && (
+                <Ionicons name="add" size={12} color={categoryColor.pharmacy.main} />
+              )}
             </View>
             {distLabel && (
               <View style={styles.distChip}>
                 <Ionicons name="navigate" size={11} color={colors.muted} />
-                <Text style={styles.distText}>{distLabel}</Text>
+                <Text style={styles.distText} numberOfLines={1} ellipsizeMode="tail">{distLabel}</Text>
               </View>
             )}
           </View>
@@ -79,20 +86,20 @@ const makeStyles = (colors: ThemeColors) =>
   card: { flexDirection: "row", backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, overflow: "hidden", minHeight: 104, ...shadow.card },
   img: { width: 96, alignSelf: "stretch", minHeight: 104, backgroundColor: colors.surfaceTertiary },
   body: { flex: 1, padding: spacing.md, justifyContent: "center" },
-  rowTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.sm },
-  name: { fontSize: 16, fontWeight: "800", color: colors.onSurface, flex: 1, lineHeight: 20 },
-  addr: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  rowTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.sm, minHeight: 40 },
+  name: { fontSize: 16, fontWeight: "800", color: colors.onSurface, flex: 1, lineHeight: 20, minHeight: 40 },
+  addr: { fontSize: 13, color: colors.muted, marginTop: 2, lineHeight: 16, minHeight: 16 },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.sm, gap: spacing.xs },
-  metaLeft: { flexDirection: "row", alignItems: "center", gap: spacing.xs, flexShrink: 1 },
-  distChip: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 0 },
-  distText: { fontSize: 12, fontWeight: "700", color: colors.muted },
+  metaLeft: { flexDirection: "row", alignItems: "center", gap: spacing.xs, flex: 1, minWidth: 0, flexWrap: "nowrap" },
+  distChip: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 0, minWidth: 0 },
+  distText: { fontSize: 12, fontWeight: "700", color: colors.muted, flexShrink: 0 },
   closesPill: { position: "absolute", top: 6, left: 6, flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: colors.accent },
   closesText: { fontSize: 10, fontWeight: "800", color: colors.onAccent },
-  tag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, flexShrink: 0 },
-  tagText: { fontSize: 11, fontWeight: "800" },
+  tag: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, flexShrink: 1, minWidth: 0, maxWidth: "68%" },
+  tagText: { fontSize: 11, fontWeight: "800", flexShrink: 1, minWidth: 0 },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 0, marginTop: 1 },
   rating: { fontSize: 14, fontWeight: "800", color: colors.onSurface },
   count: { fontSize: 12, color: colors.muted },
-  badge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill, flexShrink: 0 },
+  badge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill, flexShrink: 0, marginLeft: spacing.xs },
   badgeText: { fontSize: 11, fontWeight: "800" },
 });

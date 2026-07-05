@@ -12,11 +12,42 @@ import MapShops from "@/src/components/MapShops";
 import AdBanner from "@/src/components/AdBanner";
 import AdUpsell from "@/src/components/AdUpsell";
 import { useShops } from "@/src/useShops";
+import { apiGet } from "@/src/api";
 import { useI18n } from "@/src/i18n";
 import { spacing, radius, ThemeColors } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 const IS_WEB = Platform.OS === "web";
+
+function parseCategoryParam(raw?: string): string | string[] {
+  if (!raw) return "groomer";
+  const vals = raw
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => (x === "both" ? "groomerShop" : x));
+  if (vals.length === 0 || vals.includes("all")) return "groomer";
+  const valid = ["shop", "groomer", "groomerShop", "vet", "pharmacy"];
+  const uniq = Array.from(new Set(vals.filter((x) => valid.includes(x))));
+  if (uniq.length === 0) return "groomer";
+  return uniq.length === 1 ? uniq[0] : uniq;
+}
+
+function categoryMatchesSelected(shop: { category?: string; tags?: string[] }, selected: string | string[]): boolean {
+  const c = (shop.category === "both" ? "groomerShop" : shop.category) || "shop";
+  const tags: string[] = shop.tags || [];
+  const picks = Array.isArray(selected) ? selected : [selected];
+  if (picks.includes("all")) return true;
+  for (const p of picks) {
+    if (p === "groomer" && c === "groomer") return true;
+    if (p === "shop" && c === "shop") return true;
+    if (p === "groomerShop" && c === "groomerShop") return true;
+    if (p === "vet" && c === "vet") return true;
+    // Pharmacy: match dedicated pharmacies OR any place tagged with pharmacy
+    if (p === "pharmacy" && (c === "pharmacy" || tags.includes("pharmacy"))) return true;
+  }
+  return false;
+}
 
 function distanceKm(a: { latitude: number; longitude: number }, lat?: number, lng?: number) {
   if (lat == null || lng == null) return null;
@@ -37,31 +68,57 @@ export default function BrowseScreen() {
   const styles = useThemedStyles(makeStyles);
   const params = useLocalSearchParams<{ category?: string; location?: string; day?: string }>();
 
-  const [category, setCategory] = useState(params.category || "all");
+  // Initialize category as string or array
+  const initCategory = parseCategoryParam(params.category);
+  const [category, setCategory] = useState<string | string[]>(initCategory);
   const [query, setQuery] = useState("");
   const [openNowOnly, setOpenNowOnly] = useState(false);
   const [openUntil, setOpenUntil] = useState<string | null>(null);
   const [sort, setSort] = useState<"recommended" | "distance" | "rating">("recommended");
   const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [providerMode, setProviderMode] = useState<"seed" | "google" | null>(null);
 
   const todayIdx = (new Date().getDay() + 6) % 7;
 
   // Keep filters in sync when arriving from the Find form with new params.
   useEffect(() => {
-    if (params.category) setCategory(params.category);
+    if (params.category) {
+      setCategory(parseCategoryParam(params.category));
+    }
   }, [params.category]);
 
+  useEffect(() => {
+    if (!__DEV__) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const info = await apiGet("/");
+        if (!mounted) return;
+        setProviderMode(info?.places_provider === "google" ? "google" : "seed");
+      } catch {
+        if (!mounted) return;
+        setProviderMode(null);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const day = params.day ? Number(params.day) : -1;
-  const { shops, region, loading, loadingMore, hasMore, error, reload, loadMore } = useShops(category, {
+  const { shops, region, loading, error, reload } = useShops("all", {
     locationQuery: params.location,
     day,
     lang,
+    disablePagination: true,
   });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let res = shops.map((s) => ({ ...s, distanceKm: distanceKm(region, s.latitude, s.longitude) }));
+    let res = shops
+      .filter((s) => categoryMatchesSelected(s, category))
+      .map((s) => ({ ...s, distanceKm: distanceKm(region, s.latitude, s.longitude) }));
     if (q) res = res.filter((s) => s.name.toLowerCase().includes(q) || (s.address || "").toLowerCase().includes(q));
     if (openNowOnly) res = res.filter((s) => s.open_now === true);
     if (openUntil === "24h") {
@@ -76,10 +133,23 @@ export default function BrowseScreen() {
         return d && !d.closed && d.close >= openUntil;
       });
     }
-    if (sort === "rating") res = [...res].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    else if (sort === "distance") res = [...res].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
+    if (sort === "rating") {
+      res = [...res].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    } else if (sort === "distance") {
+      res = [...res].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
+    } else {
+      res = [...res].sort((a, b) => {
+        const openScore = Number(Boolean(b.open_now)) - Number(Boolean(a.open_now));
+        if (openScore !== 0) return openScore;
+        const distScore = (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9);
+        if (distScore !== 0) return distScore;
+        const ratingScore = (b.rating || 0) - (a.rating || 0);
+        if (ratingScore !== 0) return ratingScore;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+    }
     return res;
-  }, [shops, region, query, openNowOnly, openUntil, sort, todayIdx]);
+  }, [shops, region, category, query, openNowOnly, openUntil, sort, todayIdx]);
 
   // Build "open until" options from real data: hourly close times today (sensible range only).
   const untilOptions = useMemo(() => {
@@ -100,10 +170,14 @@ export default function BrowseScreen() {
   );
 
   const hasActiveFilters =
-    category !== "all" || query.trim() !== "" || openNowOnly || openUntil !== null || sort !== "recommended";
+    (Array.isArray(category) ? !(category.length === 1 && category[0] === "groomer") : category !== "groomer") ||
+    query.trim() !== "" ||
+    openNowOnly ||
+    openUntil !== null ||
+    sort !== "recommended";
 
   const clearFilters = () => {
-    setCategory("all");
+    setCategory("groomer");
     setQuery("");
     setOpenNowOnly(false);
     setOpenUntil(null);
@@ -194,7 +268,14 @@ export default function BrowseScreen() {
       </Modal>
 
       {!loading && !error && (
-        <Text style={styles.count}>{t("browse.results", { count: filtered.length })}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.count}>{t("browse.results", { count: filtered.length })}</Text>
+          {__DEV__ && providerMode && (
+            <View style={styles.devBadge} testID="provider-mode-badge">
+              <Text style={styles.devBadgeText}>{providerMode === "google" ? "LIVE GOOGLE" : "SEED MODE"}</Text>
+            </View>
+          )}
+        </View>
       )}
 
       {loading ? (
@@ -224,14 +305,8 @@ export default function BrowseScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: spacing.xxxl }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.5}
           ListFooterComponent={
             <View>
-              {loadingMore && <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} />}
-              {!hasMore && !loadingMore && filtered.length > 0 && (
-                <Text style={styles.noMore}>{t("browse.noMore")}</Text>
-              )}
               <AdUpsell />
               <AdBanner />
             </View>
@@ -266,7 +341,10 @@ const makeStyles = (colors: ThemeColors) =>
   sortRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
   sortRowText: { fontSize: 16, color: colors.onSurface },
   sortRowActive: { fontWeight: "800", color: colors.brand },
-  count: { fontSize: 13, color: colors.muted, fontWeight: "700", paddingHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.xs },
+  metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.xs, gap: spacing.sm },
+  count: { fontSize: 13, color: colors.muted, fontWeight: "700" },
+  devBadge: { paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.borderStrong },
+  devBadgeText: { fontSize: 11, fontWeight: "900", color: colors.onSurfaceTertiary, letterSpacing: 0.4 },
   noMore: { textAlign: "center", color: colors.muted, fontSize: 13, fontWeight: "600", paddingVertical: spacing.md },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   emptyText: { color: colors.muted, fontSize: 15, textAlign: "center", fontWeight: "600" },

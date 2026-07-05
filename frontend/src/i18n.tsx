@@ -6,11 +6,11 @@ export type Lang = "el" | "en";
 type Dict = Record<string, string>;
 
 const el: Dict = {
-  appName: "GR-oom It",
+  appName: "PET.mou!",
   tagline: "Βρες το ιδανικό κομμωτήριο & pet shop",
 
   "tab.find": "Αναζήτηση",
-  "tab.browse": "Καταστήματα",
+  "tab.browse": "Υπηρεσίες",
   "tab.saved": "Αγαπημένα",
   "tab.profile": "Προφίλ",
 
@@ -27,13 +27,16 @@ const el: Dict = {
   "type.all": "Οποιοδήποτε",
   "type.groomer": "Κομμωτήριο",
   "type.shop": "Pet Shop",
-  "type.both": "Και τα δύο",
-  "type.bothFull": "Κομμωτήριο & Pet Shop",
+  "type.groomerShop": "Κομμωτήριο & Shop",
+  "type.vet": "Κτηνίατρος",
+  "type.pharmacy": "Φαρμακείο",
 
   "cat.all": "Όλα",
   "cat.groomer": "Κομμωτήρια",
   "cat.shop": "Pet Shops",
-  "cat.both": "Και τα 2",
+  "cat.vet": "Κτηνίατροι",
+  "cat.groomerShop": "Κομμωτήριο & Shop",
+  "cat.pharmacy": "Φαρμακεία",
 
   "day.today": "Σήμερα",
   "day.tomorrow": "Αύριο",
@@ -75,10 +78,13 @@ const el: Dict = {
   "common.closed": "Κλειστό",
   "common.groomer": "Κομμωτήριο",
   "common.shop": "Pet Shop",
-  "common.both": "Κομμ. & Shop",
+  "common.groomerShop": "Κομμ. & Shop",
+  "common.vet": "Κτηνίατρος",
+  "common.pharmacy": "Φαρμακείο",
   "common.retry": "Δοκίμασε ξανά",
+  "common.cancel": "Ακύρωση",
   "common.loading": "Φόρτωση…",
-  "common.noResults": "Δεν βρέθηκαν καταστήματα. Δοκίμασε άλλο φίλτρο!",
+  "common.noResults": "Δεν βρέθηκαν υπηρεσίες. Δοκίμασε άλλο φίλτρο!",
   "common.error": "Κάτι πήγε στραβά.",
 
   "shop.ratings": "αξιολογήσεις",
@@ -103,6 +109,10 @@ const el: Dict = {
   "saved.title": "Αγαπημένα",
   "saved.sub": "Τα αγαπημένα σου μέρη",
   "saved.empty": "Δεν έχεις αγαπημένα μέρη ακόμα. Πάτα την καρδιά σε ένα κατάστημα για να το προσθέσεις.",
+  "saved.clearAll": "Καθαρισμός",
+  "saved.clearAllTitle": "Καθαρισμός αγαπημένων",
+  "saved.clearAllBody": "Θέλεις σίγουρα να αφαιρέσεις όλα τα αγαπημένα;",
+  "saved.clearAllConfirm": "Διαγραφή όλων",
 
   "profile.title": "Προφίλ",
   "profile.welcome": "Καλώς ήρθες στο",
@@ -126,11 +136,11 @@ const el: Dict = {
   "theme.title": "Εμφάνιση",
   "theme.light": "Φωτεινό",
   "theme.dark": "Σκοτεινό",
-  "profile.footer": "GR-oom It · βρες την καλύτερη φροντίδα για το κατοικίδιό σου",
+  "profile.footer": "PET.mou! · βρες την καλύτερη φροντίδα για το κατοικίδιό σου",
 };
 
 const en: Dict = {
-  appName: "GR-oom It",
+  appName: "PET.mou!",
   tagline: "Find the perfect groomer & pet shop",
 
   "tab.find": "Find",
@@ -151,13 +161,16 @@ const en: Dict = {
   "type.all": "Either",
   "type.groomer": "Groomer",
   "type.shop": "Pet Shop",
-  "type.both": "Both",
-  "type.bothFull": "Groomer & Pet Shop",
+  "type.groomerShop": "Groomer & Shop",
+  "type.vet": "Vet",
+  "type.pharmacy": "Pharmacy",
 
   "cat.all": "All",
   "cat.groomer": "Groomers",
   "cat.shop": "Pet Shops",
-  "cat.both": "Both",
+  "cat.groomerShop": "Groomer & Shop",
+  "cat.vet": "Vets",
+  "cat.pharmacy": "Pharmacies",
 
   "day.today": "Today",
   "day.tomorrow": "Tomorrow",
@@ -199,10 +212,13 @@ const en: Dict = {
   "common.closed": "Closed",
   "common.groomer": "Groomer",
   "common.shop": "Pet Shop",
-  "common.both": "Groomer & Shop",
+  "common.vet": "Vet",
+  "common.groomerShop": "Groomer & Shop",
+  "common.pharmacy": "Pharmacy",
   "common.retry": "Retry",
+  "common.cancel": "Cancel",
   "common.loading": "Loading…",
-  "common.noResults": "No shops found. Try another filter!",
+  "common.noResults": "No services found. Try another filter!",
   "common.error": "Something went wrong.",
 
   "shop.ratings": "ratings",
@@ -227,6 +243,10 @@ const en: Dict = {
   "saved.title": "Saved",
   "saved.sub": "Your favourite spots",
   "saved.empty": "No saved places yet. Tap the heart on a shop to save it.",
+  "saved.clearAll": "Clear all",
+  "saved.clearAllTitle": "Clear saved places",
+  "saved.clearAllBody": "Are you sure you want to remove all saved places?",
+  "saved.clearAllConfirm": "Delete all",
 
   "profile.title": "Profile",
   "profile.welcome": "Welcome to",
@@ -250,7 +270,7 @@ const en: Dict = {
   "theme.title": "Appearance",
   "theme.light": "Light",
   "theme.dark": "Dark",
-  "profile.footer": "GR-oom It · find the best pet care nearby",
+  "profile.footer": "PET.mou! · find the best pet care nearby",
 };
 
 const DICTS: Record<Lang, Dict> = { el, en };

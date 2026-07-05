@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useState } from "react";
-import { View, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet, Platform, Text } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import { getCat, ThemeColors } from "@/src/theme";
-import { useThemedStyles } from "@/src/theme-context";
+import { getCat, ThemeColors, categoryColor } from "@/src/theme";
+import { useTheme, useThemedStyles } from "@/src/theme-context";
+import { mapsDisabled } from "@/src/feature-flags";
 
 // Hide Google's POI / transit / business clutter so only our pins stand out.
 const MAP_STYLE = [
@@ -14,7 +15,8 @@ const MAP_STYLE = [
   { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
 ];
 
-const catIcon = (c?: string) => (c === "groomer" ? "cut" : c === "both" ? "ribbon" : "storefront");
+const catIcon = (c?: string) =>
+  c === "groomer" ? "cut" : (c === "groomerShop" || c === "both") ? "ribbon" : c === "vet" ? "medkit" : c === "pharmacy" ? "add" : "storefront";
 
 export default function MapShops({
   shops,
@@ -33,7 +35,17 @@ export default function MapShops({
 }) {
   const mapRef = useRef<MapView>(null);
   const styles = useThemedStyles(makeStyles);
+  const { colors } = useTheme();
   const center = region || { latitude: 37.9838, longitude: 23.7275 };
+
+  if (mapsDisabled) {
+    return (
+      <View style={[styles.wrap, styles.disabledWrap]} testID="shops-map-disabled">
+        <Ionicons name="map-outline" size={40} color={colors.brandSecondary} />
+        <Text style={styles.disabledText}>Map preview is temporarily disabled to control Google Maps billing.</Text>
+      </View>
+    );
+  }
 
   // Custom marker views (vector icons) render blank on Android when tracksViewChanges
   // is false from the start — the pin is snapshotted before the icon font paints.
@@ -42,7 +54,8 @@ export default function MapShops({
   const idsKey = shops.map((s) => s.id).join(",");
   useEffect(() => {
     setTracks(true);
-    const timer = setTimeout(() => setTracks(false), 2500);
+    // Leave tracking on longer so icon fonts are reliably painted before marker snapshot.
+    const timer = setTimeout(() => setTracks(false), 6000);
     return () => clearTimeout(timer);
   }, [idsKey, focusId]);
 
@@ -102,6 +115,13 @@ export default function MapShops({
                   ]}
                 >
                   <Ionicons name={catIcon(s.category) as any} size={17} color="#fff" />
+                  {s.category !== "pharmacy" && (s.tags || []).includes("pharmacy") && (
+                    <View style={{ position: "absolute", bottom: -2, right: -2 }}>
+                      <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: categoryColor.pharmacy.main, alignItems: "center", justifyContent: "center" }}>
+                        <Ionicons name="add" size={10} color="#fff" />
+                      </View>
+                    </View>
+                  )}
                 </View>
               </Marker>
             );
@@ -114,6 +134,8 @@ export default function MapShops({
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
   wrap: { flex: 1 },
+  disabledWrap: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary, gap: 10, padding: 20 },
+  disabledText: { textAlign: "center", color: colors.muted, fontSize: 13, fontWeight: "600" },
   pin: {
     width: 36,
     height: 36,

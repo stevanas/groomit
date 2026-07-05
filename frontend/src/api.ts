@@ -2,6 +2,7 @@ import { storage } from "@/src/utils/storage";
 
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 export const API = `${BASE}/api`;
+const inFlightGets = new Map<string, Promise<any>>();
 
 const TOKEN_KEY = "pawfind_session_token";
 
@@ -22,9 +23,24 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 export async function apiGet(path: string, auth = false) {
   const headers = auth ? await authHeaders() : {};
-  const res = await fetch(`${API}${path}`, { headers });
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
-  return res.json();
+  const url = `${API}${path}`;
+  const authToken = headers.Authorization || "";
+  const requestKey = `${auth ? "auth" : "anon"}:${url}:${authToken}`;
+  const existing = inFlightGets.get(requestKey);
+  if (existing) return existing;
+
+  const request = (async () => {
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+    return res.json();
+  })();
+
+  inFlightGets.set(requestKey, request);
+  try {
+    return await request;
+  } finally {
+    inFlightGets.delete(requestKey);
+  }
 }
 
 export async function apiPost(path: string, body: any, auth = false) {
@@ -39,8 +55,15 @@ export async function apiPost(path: string, body: any, auth = false) {
   return res.json();
 }
 
-export function photoUrl(shop: { image_url?: string | null; photo_name?: string | null }): string | null {
+export function photoUrl(
+  shop: { image_url?: string | null; photo_name?: string | null },
+  opts: { size?: "preview" | "full"; maxWidth?: number } = {},
+): string | null {
   if (shop.image_url) return shop.image_url;
-  if (shop.photo_name) return `${API}/places/photo?name=${encodeURIComponent(shop.photo_name)}`;
+  if (shop.photo_name?.startsWith("http://") || shop.photo_name?.startsWith("https://")) return shop.photo_name;
+  if (shop.photo_name) {
+    const maxWidth = opts.maxWidth ?? (opts.size === "preview" ? 400 : 800);
+    return `${API}/places/photo?name=${encodeURIComponent(shop.photo_name)}&max_width=${maxWidth}`;
+  }
   return null;
 }

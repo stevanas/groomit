@@ -8,6 +8,9 @@ export type FavShop = {
   name: string;
   address?: string;
   category?: string;
+  tags?: string[];
+  latitude?: number | null;
+  longitude?: number | null;
   rating?: number | null;
   image_url?: string | null;
   photo_name?: string | null;
@@ -47,6 +50,9 @@ export async function toggleFavorite(shop: any): Promise<boolean> {
         name: shop.name,
         address: shop.address,
         category: shop.category,
+        tags: Array.isArray(shop.tags) ? shop.tags : [],
+        latitude: typeof shop.latitude === "number" ? shop.latitude : null,
+        longitude: typeof shop.longitude === "number" ? shop.longitude : null,
         rating: shop.rating,
         image_url: shop.image_url ?? null,
         photo_name: shop.image_url ? null : shop.photo_name ?? (shop.photos?.[0] ?? null),
@@ -59,4 +65,8 @@ export async function toggleFavorite(shop: any): Promise<boolean> {
   }
   await storage.setItem(KEY, JSON.stringify(next));
   return result;
+}
+
+export async function clearFavorites(): Promise<void> {
+  await storage.setItem(KEY, "[]");
 }

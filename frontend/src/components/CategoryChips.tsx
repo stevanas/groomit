@@ -5,18 +5,19 @@ import { useThemedStyles } from "@/src/theme-context";
 import { useI18n } from "@/src/i18n";
 
 const KEYS = [
-  { key: "all", label: "cat.all" },
   { key: "groomer", label: "cat.groomer" },
   { key: "shop", label: "cat.shop" },
-  { key: "both", label: "cat.both" },
+  { key: "groomerShop", label: "cat.groomerShop" },
+  { key: "vet", label: "cat.vet" },
+  { key: "pharmacy", label: "cat.pharmacy" },
 ] as const;
 
 export default function CategoryChips({
   value,
   onChange,
 }: {
-  value: string;
-  onChange: (v: string) => void;
+  value: string | string[];
+  onChange: (v: string | string[]) => void;
 }) {
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
@@ -24,7 +25,7 @@ export default function CategoryChips({
     <View style={styles.rowWrap}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         {KEYS.map((c) => {
-          const active = value === c.key;
+          const active = Array.isArray(value) ? value.includes(c.key) : value === c.key;
           return (
             <Pressable
               key={c.key}

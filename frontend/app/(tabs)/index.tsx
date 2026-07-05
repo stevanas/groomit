@@ -6,13 +6,14 @@ import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { spacing, radius, shadow, fonts, ThemeColors } from "@/src/theme";
+import { spacing, radius, shadow, fonts, ThemeColors, getCat } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
 import { useI18n } from "@/src/i18n";
 import WhenPicker, { WhenValue, whenToDay } from "@/src/components/WhenPicker";
 import MapPreview from "@/src/components/MapPreview";
 import LocationAutocomplete from "@/src/components/LocationAutocomplete";
 import { useShops } from "@/src/useShops";
+import { mapsDisabled } from "@/src/feature-flags";
 
 type Option = { value: string; label: string };
 
@@ -26,9 +27,9 @@ function PickerField({
   return (
     <>
       <Pressable style={styles.field} onPress={() => setOpen(true)} testID={testID}>
-        <Ionicons name={icon} size={18} color={colors.brand} />
+        <Ionicons name={icon} size={20} color={colors.brand} />
         <Text style={styles.fieldValue} numberOfLines={1}>{current?.label}</Text>
-        <Ionicons name="chevron-down" size={18} color={colors.muted} />
+        <Ionicons name="chevron-down" size={20} color={colors.muted} />
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
@@ -60,25 +61,26 @@ export default function FindScreen() {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
-  const [type, setType] = useState("all");
-  const [location, setLocation] = useState("");
+  const [type, setType] = useState("groomer");
   const [when, setWhen] = useState<WhenValue>({ type: "any" });
+  const [locationInput, setLocationInput] = useState("");
+  const [locationQuery, setLocationQuery] = useState("");
 
-  const { shops, region } = useShops("all", { lang });
+  const { shops, region } = useShops("all", { lang, enabled: false, disablePagination: true });
 
   const typeOptions: Option[] = [
     { value: "groomer", label: t("type.groomer") },
     { value: "shop", label: t("type.shop") },
-    { value: "both", label: t("type.both") },
+    { value: "groomerShop", label: t("type.groomerShop") },
+    { value: "vet", label: t("type.vet") },
+    { value: "pharmacy", label: t("type.pharmacy") },
     { value: "all", label: t("type.all") },
   ];
 
   const search = () => {
-    // "Near me" is a display label, not a real place query — send empty so browse uses GPS.
-    const loc = location.trim() === t("find.useMyLocation") ? "" : location.trim();
     router.push({
       pathname: "/(tabs)/browse",
-      params: { category: type, location: loc, day: String(whenToDay(when)) },
+      params: { category: type, day: String(whenToDay(when)), location: locationQuery.trim() },
     });
   };
 
@@ -102,11 +104,21 @@ export default function FindScreen() {
 
           <Text style={styles.label}>{t("find.in")}</Text>
           <LocationAutocomplete
-            value={location}
-            onChangeText={setLocation}
-            onSelect={() => {}}
-            onUseMyLocation={() => {}}
-            testID="location-input"
+            value={locationInput}
+            onChangeText={(v) => {
+              setLocationInput(v);
+              setLocationQuery(v);
+            }}
+            onSelect={(v) => {
+              setLocationInput(v);
+              setLocationQuery(v);
+            }}
+            onUseMyLocation={() => {
+              setLocationInput(t("find.useMyLocation"));
+              setLocationQuery("");
+            }}
+            showUseMyLocation={false}
+            testID="find-location-input"
           />
 
           <Text style={styles.label}>{t("find.when")}</Text>
@@ -123,6 +135,7 @@ export default function FindScreen() {
           shops={shops}
           region={region}
           onPress={() =>
+            !mapsDisabled &&
             router.push({
               pathname: "/map",
               params: { lat: String(region.latitude), lng: String(region.longitude) },
@@ -134,12 +147,26 @@ export default function FindScreen() {
         <Text style={styles.quick}>{t("find.quick")}</Text>
         <View style={styles.quickRow}>
           <Pressable style={styles.quickCard} onPress={() => router.push({ pathname: "/(tabs)/browse", params: { category: "groomer" } })} testID="quick-groomer">
-            <Ionicons name="cut" size={26} color={colors.brand} />
+            <Ionicons name="cut" size={26} color={getCat("groomer").main} />
             <Text style={styles.quickText}>{t("cat.groomer")}</Text>
           </Pressable>
           <Pressable style={styles.quickCard} onPress={() => router.push({ pathname: "/(tabs)/browse", params: { category: "shop" } })} testID="quick-shop">
-            <Ionicons name="storefront" size={26} color={colors.accent} />
+            <Ionicons name="storefront" size={26} color={getCat("shop").main} />
             <Text style={styles.quickText}>{t("cat.shop")}</Text>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => router.push({ pathname: "/(tabs)/browse", params: { category: "groomerShop" } })} testID="quick-groomer-shop">
+            <Ionicons name="ribbon" size={26} color={getCat("groomerShop").main} />
+            <Text style={styles.quickText}>{t("cat.groomerShop")}</Text>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => router.push({ pathname: "/(tabs)/browse", params: { category: "vet" } })} testID="quick-vet">
+            <Ionicons name="medkit" size={26} color={getCat("vet").main} />
+            <Text style={styles.quickText}>{t("cat.vet")}</Text>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => router.push({ pathname: "/(tabs)/browse", params: { category: "pharmacy" } })} testID="quick-pharmacy">
+            <View style={[styles.quickPharmacyBadge, { backgroundColor: getCat("pharmacy").main }]}>
+              <Ionicons name="add" size={20} color="#fff" />
+            </View>
+            <Text style={styles.quickText}>{t("cat.pharmacy")}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -152,20 +179,21 @@ const makeStyles = (colors: ThemeColors) =>
   container: { flex: 1, backgroundColor: colors.surface },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.sm },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
-  logo: { width: 40, height: 40 },
-  brand: { fontSize: 26, color: colors.onSurface, fontFamily: fonts.display, fontWeight: "700" },
-  heading: { fontSize: 28, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginTop: spacing.md },
+  logo: { width: 54, height: 54 },
+  brand: { fontSize: 32, color: colors.onSurface, fontFamily: fonts.display, fontWeight: "800" },
+  heading: { fontSize: 32, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginTop: spacing.md },
   sub: { fontSize: 15, color: colors.muted, marginBottom: spacing.md, lineHeight: 21 },
-  card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, ...shadow.card },
-  label: { fontSize: 13, fontWeight: "800", color: colors.onSurfaceTertiary, marginTop: spacing.xs },
-  field: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: spacing.md, height: 52 },
-  fieldValue: { flex: 1, fontSize: 16, fontWeight: "700", color: colors.onSurface },
-  input: { flex: 1, fontSize: 16, color: colors.onSurface },
-  searchBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.brand, height: 56, borderRadius: radius.pill, marginTop: spacing.md },
-  searchText: { color: colors.onBrand, fontSize: 17, fontWeight: "800" },
+  card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md, ...shadow.card },
+  label: { fontSize: 15, fontWeight: "800", color: colors.onSurfaceTertiary, marginTop: spacing.sm },
+  field: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: spacing.lg, height: 60 },
+  fieldValue: { flex: 1, fontSize: 18, fontWeight: "700", color: colors.onSurface },
+  input: { flex: 1, fontSize: 18, color: colors.onSurface },
+  searchBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.brand, height: 64, borderRadius: radius.pill, marginTop: spacing.lg },
+  searchText: { color: colors.onBrand, fontSize: 19, fontWeight: "800" },
   quick: { fontSize: 15, fontWeight: "800", color: colors.onSurface, marginTop: spacing.xl },
-  quickRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
-  quickCard: { flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, padding: spacing.lg, alignItems: "center", gap: spacing.sm, ...shadow.card },
+  quickRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm, flexWrap: "wrap" },
+  quickCard: { width: "47%", backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, padding: spacing.lg, alignItems: "center", gap: spacing.sm, ...shadow.card },
+  quickPharmacyBadge: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   quickText: { fontSize: 14, fontWeight: "800", color: colors.onSurface },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: "60%", paddingVertical: spacing.sm },
