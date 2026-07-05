@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { spacing, radius, shadow, getCat, ThemeColors, categoryColor } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
 import { useI18n } from "@/src/i18n";
+import { photoUrl } from "@/src/api";
 import { formatDistance } from "@/src/utils/distance";
 
 const catLabelKey = (c?: string) =>
