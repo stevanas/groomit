@@ -6,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import uuid
+import math
 import httpx
 from pathlib import Path
 from pydantic import BaseModel
@@ -243,6 +244,25 @@ def _rounded_coord(value: Optional[float]) -> Optional[float]:
     if value is None:
         return None
     return round(value, 1)
+
+
+def _bbox(lat: float, lng: float, radius_m: float) -> Dict[str, Dict[str, float]]:
+    """Rectangle bounding box around a center point, used as a hard location restriction
+    so the provider only returns places within the search area (not far-away matches)."""
+    dlat = radius_m / 111320.0
+    dlng = radius_m / (111320.0 * max(math.cos(math.radians(lat)), 0.01))
+    return {
+        "low": {"latitude": lat - dlat, "longitude": lng - dlng},
+        "high": {"latitude": lat + dlat, "longitude": lng + dlng},
+    }
+
+
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    s = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(s), math.sqrt(1 - s))
 
 
 def _combined_category_query(categories: List[str]) -> str:
@@ -643,7 +663,7 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
                   "places.regularOpeningHours,nextPageToken")
     payload = {
         "textQuery": query, "languageCode": lang,
-        "locationBias": {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": float(radius)}},
+        "locationRestriction": {"rectangle": _bbox(lat, lng, float(radius))},
         "pageSize": 20,
     }
     if page_token:
@@ -812,8 +832,14 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
         )
 
         results = []
+        radius_km = min(radius, 50000) / 1000.0
         for r in merged:
             r["category"] = _normalize_category(r.get("category"))
+            rlat, rlng = r.get("latitude"), r.get("longitude")
+            if rlat is None or rlng is None:
+                continue
+            if _haversine_km(lat, lng, rlat, rlng) > radius_km:
+                continue  # drop far-away matches the provider may still include
             if _matches_category(r["category"], r.get("tags", []), categories):
                 results.append(r)
 
