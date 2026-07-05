@@ -27,6 +27,8 @@ GOOGLE_DAILY_BUDGET_EUR = float(os.environ.get("GOOGLE_DAILY_BUDGET_EUR", "1.0")
 ENABLE_LIVE_GOOGLE_PLACES = os.environ.get("ENABLE_LIVE_GOOGLE_PLACES", "false").strip().lower() in {"1", "true", "yes", "on"}
 DISABLE_LIVE_GOOGLE_PLACES = os.environ.get("DISABLE_LIVE_GOOGLE_PLACES", "false").strip().lower() in {"1", "true", "yes", "on"}
 ALLOW_LIVE_GOOGLE_IN_DEV = os.environ.get("ALLOW_LIVE_GOOGLE_IN_DEV", "false").strip().lower() in {"1", "true", "yes", "on"}
+ALLOW_LIVE_GOOGLE_IN_NON_PROD = os.environ.get("ALLOW_LIVE_GOOGLE_IN_NON_PROD", "false").strip().lower() in {"1", "true", "yes", "on"}
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").strip().lower()
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -83,6 +85,8 @@ BLOCKED_METRICS = {
     },
 }
 GOOGLE_USAGE_WINDOW = {"date": datetime.now(timezone.utc).date().isoformat(), "calls": 0, "spent_eur": 0.0}
+ALERT_THRESHOLDS = (0.70, 0.85, 1.00)
+ALERT_STATE = {"date": GOOGLE_USAGE_WINDOW["date"], "fired": set()}
 nearby_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
 detail_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
 autocomplete_cache: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
@@ -131,6 +135,27 @@ def _record_google_call(metric: str):
     GOOGLE_USAGE_WINDOW["calls"] += 1
     GOOGLE_CALL_METRICS[metric] += 1
     GOOGLE_USAGE_WINDOW["spent_eur"] += GOOGLE_ESTIMATED_EUR[metric]
+    _maybe_log_budget_alerts()
+
+
+def _maybe_log_budget_alerts():
+    _reset_usage_if_needed()
+    if ALERT_STATE["date"] != GOOGLE_USAGE_WINDOW["date"]:
+        ALERT_STATE["date"] = GOOGLE_USAGE_WINDOW["date"]
+        ALERT_STATE["fired"] = set()
+    cap = max(GOOGLE_DAILY_BUDGET_EUR, 0.0001)
+    usage_ratio = GOOGLE_USAGE_WINDOW["spent_eur"] / cap
+    for threshold in ALERT_THRESHOLDS:
+        key = int(threshold * 100)
+        if usage_ratio >= threshold and key not in ALERT_STATE["fired"]:
+            ALERT_STATE["fired"].add(key)
+            logger.warning(
+                "Google budget alert: %s%% reached (spent=%.3f EUR / cap=%.3f EUR, calls=%s)",
+                key,
+                GOOGLE_USAGE_WINDOW["spent_eur"],
+                GOOGLE_DAILY_BUDGET_EUR,
+                GOOGLE_USAGE_WINDOW["calls"],
+            )
 
 
 def _budget_reason(metric: Optional[str] = None) -> Optional[str]:
@@ -276,9 +301,12 @@ def _detail_from_nearby_cache(place_id: str) -> Optional[dict]:
 
 
 def _google_places_enabled() -> bool:
-    # Keep development free by default unless explicitly overridden.
-    if os.environ.get("ENVIRONMENT", "development").strip().lower() == "development" and not ALLOW_LIVE_GOOGLE_IN_DEV:
-        return False
+    # Keep non-production free by default unless explicitly overridden.
+    if ENVIRONMENT != "production" and not ALLOW_LIVE_GOOGLE_IN_NON_PROD:
+        if ENVIRONMENT == "development" and ALLOW_LIVE_GOOGLE_IN_DEV:
+            pass
+        else:
+            return False
     return bool(GOOGLE_MAPS_API_KEY) and ENABLE_LIVE_GOOGLE_PLACES and not DISABLE_LIVE_GOOGLE_PLACES
 
 
@@ -928,14 +956,14 @@ async def toggle_favorite(body: FavoriteToggle, authorization: Optional[str] = H
 
 @api_router.get("/")
 async def root():
-    is_dev = os.environ.get("ENVIRONMENT", "development").strip().lower() == "development"
+    is_non_prod = ENVIRONMENT != "production"
     return {
         "message": "PawFind API",
         "places_provider": "google" if _google_places_enabled() else "seed",
         "seed_first": not _google_places_enabled(),
         "live_google_enabled": _google_places_enabled(),
         "live_google_disabled": DISABLE_LIVE_GOOGLE_PLACES,
-        "dev_live_google_locked": is_dev and not ALLOW_LIVE_GOOGLE_IN_DEV,
+        "non_prod_live_google_locked": is_non_prod and not ALLOW_LIVE_GOOGLE_IN_NON_PROD,
     }
 
 

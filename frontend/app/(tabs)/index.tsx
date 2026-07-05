@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, Modal, Platform, KeyboardAvoidingView,
 } from "react-native";
@@ -12,6 +12,7 @@ import { useI18n } from "@/src/i18n";
 import WhenPicker, { WhenValue, whenToDay } from "@/src/components/WhenPicker";
 import MapPreview from "@/src/components/MapPreview";
 import LocationAutocomplete from "@/src/components/LocationAutocomplete";
+import { apiGet } from "@/src/api";
 import { useShops } from "@/src/useShops";
 import { mapsDisabled } from "@/src/feature-flags";
 
@@ -65,8 +66,27 @@ export default function FindScreen() {
   const [when, setWhen] = useState<WhenValue>({ type: "any" });
   const [locationInput, setLocationInput] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
+  const [providerMode, setProviderMode] = useState<"seed" | "google" | null>(null);
 
   const { shops, region } = useShops("all", { lang, enabled: false, disablePagination: true });
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const info = await apiGet("/");
+        if (!mounted) return;
+        setProviderMode(info?.places_provider === "google" ? "google" : "seed");
+      } catch {
+        if (!mounted) return;
+        setProviderMode(null);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const typeOptions: Option[] = [
     { value: "groomer", label: t("type.groomer") },
@@ -99,6 +119,11 @@ export default function FindScreen() {
         <Text style={styles.sub}>{t("find.sub")}</Text>
 
         <View style={styles.card}>
+          {__DEV__ && providerMode && (
+            <View style={styles.devBadge} testID="find-provider-mode-badge">
+              <Text style={styles.devBadgeText}>{providerMode === "google" ? "LIVE CALLS ON" : "LIVE CALLS OFF"}</Text>
+            </View>
+          )}
           <Text style={styles.label}>{t("find.need")}</Text>
           <PickerField icon="paw" value={type} options={typeOptions} onSelect={setType} testID="picker-type" />
 
@@ -200,4 +225,6 @@ const makeStyles = (colors: ThemeColors) =>
   optionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
   optionText: { fontSize: 16, color: colors.onSurface },
   optionTextActive: { fontWeight: "800", color: colors.brand },
+  devBadge: { alignSelf: "flex-start", paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.surfaceTertiary, borderWidth: 1, borderColor: colors.borderStrong },
+  devBadgeText: { fontSize: 11, fontWeight: "900", color: colors.onSurfaceTertiary, letterSpacing: 0.4 },
 });

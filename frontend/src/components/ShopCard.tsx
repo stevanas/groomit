@@ -4,7 +4,6 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { spacing, radius, shadow, getCat, ThemeColors, categoryColor } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
-import { photoUrl } from "@/src/api";
 import { useI18n } from "@/src/i18n";
 import { formatDistance } from "@/src/utils/distance";
 
@@ -19,7 +18,8 @@ export default function ShopCard({ shop, onPress }: { shop: any; onPress: () => 
   const { t } = useI18n();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const uri = photoUrl(shop, { size: "preview" });
+  // Avoid paid photo proxy calls in lists: only use direct URLs if present.
+  const uri = shop?.image_url || (typeof shop?.photo_name === "string" && /^https?:\/\//.test(shop.photo_name) ? shop.photo_name : null);
   const cat = getCat(shop.category);
   const today = shop.schedule?.[TODAY_IDX];
   const is24h = today && !today.closed && today.open === "00:00" && today.close === "23:59";
