@@ -299,12 +299,12 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 def _combined_category_query(categories: List[str]) -> str:
     normalized = list(dict.fromkeys(categories or ["all"]))
     if "all" in normalized:
-        return "pet store pet groomer veterinary clinic pet pharmacy"
+        return "pet store pet groomer κτηνιατρος veterinary clinic pet pharmacy"
     query_parts = {
         "groomer": "pet groomer",
         "shop": "pet store",
         "groomerShop": "pet grooming pet store",
-        "vet": "veterinary clinic",
+        "vet": "κτηνιατρος veterinary clinic",
         "pharmacy": "pet pharmacy animal pharmacy",
     }
     return " ".join(query_parts[category] for category in normalized if category in query_parts)
