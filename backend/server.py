@@ -595,6 +595,52 @@ def _classify(types, name):
     return "shop"
 
 
+def _name_classify(name: str) -> Optional[str]:
+    """Classify purely from the business name. Returns None when the name gives
+    no clear signal (caller then falls back to the query intent). This is the most
+    reliable way to separate pure groomers, pure shops, and true combos, because
+    the name is what actually distinguishes e.g. 'Pet Twins Grooming' (groomer)
+    from 'Best Friends - Pet Shop & Grooming' (combo)."""
+    name_l = (name or "").lower()
+    vet_kw = ["vet", "veterinarian", "veterinary", "κτηνιάτρ", "κτηνιατρ", "veterinario", "pet clinic"]
+    groom_kw = ["groom", "spa", "salon", "wash", "κομμωτ", "καλλωπ", "περιποί", "μπάνιο"]
+    store_kw = ["shop", "store", "petshop", "είδη", "κατάστημα", "supplies"]
+    pharma_kw = ["pharmacy", "φαρμακείο", "φαρμακει", "ζωοφαρμακε"]
+    has_vet = any(w in name_l for w in vet_kw)
+    has_groom = any(w in name_l for w in groom_kw)
+    has_store = any(w in name_l for w in store_kw)
+    has_pharma = any(w in name_l for w in pharma_kw)
+    # Precedence handles Greek hybrids: "Κτηνιατρικό Φαρμακείο" (veterinary
+    # PHARMACY) and "Κτηνιατρικά είδη" (veterinary SUPPLIES / shop) contain the
+    # vet adjective but are NOT vet clinics, so pharmacy/shop signals win first.
+    if has_pharma and not has_store:
+        return "pharmacy"
+    if has_vet and not has_store and not has_pharma:
+        return "vet"
+    if has_groom and has_store:
+        return "groomerShop"
+    if has_groom:
+        return "groomer"
+    if has_store:
+        return "shop"
+    if has_pharma:
+        return "pharmacy"
+    if has_vet:
+        return "vet"
+    return None
+
+
+def _resolve_category(types, name, forced_category: Optional[str]) -> str:
+    """Decide a place's single category. Name signal wins (most reliable), then the
+    query intent that found it, then the provider-type classification."""
+    name_cat = _name_classify(name)
+    if name_cat:
+        return name_cat
+    if forced_category and forced_category != "all":
+        return _normalize_category(forced_category)
+    return _classify(types, name)
+
+
 def _get_tags(types, name) -> list:
     """Secondary tags that can apply on top of any primary category."""
     name_l = (name or "").lower()
@@ -736,11 +782,16 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
 
 async def _google_text_search_for_category(query, lat, lng, radius, lang, category: Optional[str], page_token=None):
     out, token = await _google_text_search(query, lat, lng, radius, lang, page_token)
-    if not category or category == "all":
-        return out, token
-    normalized_category = _normalize_category(category)
+    # Resolve each place's category from its NAME first, falling back to the
+    # requested category. Prevents pure groomers/shops returned by the combo
+    # ("pet grooming pet store") query from being force-labelled groomerShop.
     for item in out:
-        item["category"] = normalized_category
+        name_cat = _name_classify(item.get("name", ""))
+        if name_cat:
+            item["category"] = name_cat
+        elif category and category != "all":
+            item["category"] = _normalize_category(category)
+        # else: keep the type-based classification already set by _google_text_search
     return out, token
 
 
