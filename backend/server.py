@@ -9,8 +9,6 @@ import uuid
 import math
 import asyncio
 import httpx
-import re
-import unicodedata
 from pathlib import Path
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional, Tuple
@@ -356,8 +354,6 @@ async def _detail_from_nearby_cache(place_id: str) -> Optional[dict]:
             "schedule": place.get("schedule"),
             "schedule_text": [],
             "tags": place.get("tags", []),
-            "emergency": place.get("emergency", False),
-            "emergency_source": place.get("emergency_source"),
             "google_reviews": [],
             "source": "budget_cap_cached_summary",
         }
@@ -474,10 +470,10 @@ SEED_SHOPS = [
     {"id": "seed_4", "name": "Ζωοφιλία Pet Shop", "address": "Λ. Κηφισίας 18, Αμπελόκηποι", "latitude": 37.9870, "longitude": 23.7560, "category": "shop", "rating": 4.3, "user_rating_count": 89, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210004", "website": "https://example.gr", "schedule": _sched(closed_days=(6,)), "reviews": SAMPLE_REVIEWS_SHOP, "tags": ["pharmacy"]},
     {"id": "seed_5", "name": "Furry Friends Boutique", "address": "Αδριανού 8, Μοναστηράκι", "latitude": 37.9760, "longitude": 23.7250, "category": "groomerShop", "rating": 4.5, "user_rating_count": 156, "image_url": "https://images.unsplash.com/photo-1778653202386-06d020d905df?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210005", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
     {"id": "seed_6", "name": "Pawsh Grooming Studio", "address": "Πλ. Βικτωρίας 3, Αθήνα", "latitude": 37.9930, "longitude": 23.7300, "category": "groomer", "rating": 4.7, "user_rating_count": 178, "image_url": "https://images.unsplash.com/photo-1719464454959-9cf304ef4774?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210006", "website": "https://example.gr", "schedule": _sched(closed_days=(0,)), "reviews": SAMPLE_REVIEWS_GROOMER},
-    {"id": "seed_7", "name": "PetPharm Εφημερεύον Κτηνιατρικό Φαρμακείο", "address": "Σταδίου 22, Αθήνα", "latitude": 37.9785, "longitude": 23.7335, "category": "pharmacy", "rating": 4.6, "user_rating_count": 94, "image_url": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210007", "website": "https://example.gr", "schedule": _sched(closed_days=(6,)), "reviews": SAMPLE_REVIEWS_SHOP},
+    {"id": "seed_7", "name": "PetPharm Κτηνιατρικό Φαρμακείο", "address": "Σταδίου 22, Αθήνα", "latitude": 37.9785, "longitude": 23.7335, "category": "pharmacy", "rating": 4.6, "user_rating_count": 94, "image_url": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210007", "website": "https://example.gr", "schedule": _sched(closed_days=(6,)), "reviews": SAMPLE_REVIEWS_SHOP},
     {"id": "seed_8", "name": "Φαρμακείο Ζωής", "address": "Ακαδημίας 45, Αθήνα", "latitude": 37.9800, "longitude": 23.7380, "category": "pharmacy", "rating": 4.4, "user_rating_count": 61, "image_url": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": False, "phone": "+30 210 3210008", "website": "https://example.gr", "schedule": _sched(weekday="08:30-21:00", closed_days=(6,)), "reviews": SAMPLE_REVIEWS_SHOP},
     {"id": "seed_9", "name": "Animal Health Pharmacy", "address": "Λ. Αλεξάνδρας 10, Αθήνα", "latitude": 37.9900, "longitude": 23.7500, "category": "pharmacy", "rating": 4.8, "user_rating_count": 143, "image_url": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210009", "website": "https://example.gr", "schedule": _sched(closed_days=()), "reviews": SAMPLE_REVIEWS_SHOP},
-    {"id": "seed_10", "name": "Κτηνιατρική Κλινική Αθηνών", "address": "Σόλωνος 60, Αθήνα", "latitude": 37.9825, "longitude": 23.7425, "category": "vet", "rating": 4.7, "user_rating_count": 188, "image_url": "https://images.unsplash.com/photo-1530023367847-a683933f4178?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210010", "website": "https://example.gr", "schedule": _sched(weekday="09:00-20:00", closed_days=(6,)), "schedule_text": ["Δευτέρα - Παρασκευή: 09:00 - 20:00", "Εφημερία / επείγοντα 24ωρο"], "reviews": SAMPLE_REVIEWS_GROOMER},
+    {"id": "seed_10", "name": "Κτηνιατρική Κλινική Αθηνών", "address": "Σόλωνος 60, Αθήνα", "latitude": 37.9825, "longitude": 23.7425, "category": "vet", "rating": 4.7, "user_rating_count": 188, "image_url": "https://images.unsplash.com/photo-1530023367847-a683933f4178?crop=entropy&cs=srgb&fm=jpg&q=85&w=800", "open_now": True, "phone": "+30 210 3210010", "website": "https://example.gr", "schedule": _sched(weekday="09:00-20:00", closed_days=(6,)), "reviews": SAMPLE_REVIEWS_GROOMER},
 ]
 
 SEED_CITY_CENTERS = {
@@ -605,61 +601,6 @@ def _get_tags(types, name) -> list:
     return tags
 
 
-EMERGENCY_KEYWORDS = [
-    "emergency",
-    "emergencies",
-    "urgent",
-    "urgency",
-    "after hours",
-    "after-hours",
-    "on call",
-    "on-call",
-    "24h emergency",
-    "24/7 emergency",
-    "24 hour emergency",
-    "24-hour emergency",
-    "24ωρ",
-    "24ωρο",
-    "24ωρη",
-    "24ωρης",
-    "εφημερ",
-    "επειγον",
-    "επειγοντ",
-    "κεντρο επειγοντων",
-]
-
-
-def _normalize_search_text(text: Optional[str]) -> str:
-    if not text:
-        return ""
-    lowered = text.casefold()
-    # Strip diacritics so Greek keywords match with/without tonos.
-    lowered = "".join(
-        ch for ch in unicodedata.normalize("NFD", lowered)
-        if unicodedata.category(ch) != "Mn"
-    )
-    lowered = re.sub(r"[^a-z0-9\u0370-\u03ff\u1f00-\u1fff]+", " ", lowered)
-    return re.sub(r"\s+", " ", lowered).strip()
-
-
-def _contains_emergency_keyword(text: Optional[str]) -> bool:
-    normalized = _normalize_search_text(text)
-    if not normalized:
-        return False
-    return any(keyword in normalized for keyword in EMERGENCY_KEYWORDS)
-
-
-def _derive_emergency(name: Optional[str], weekday_descriptions: Optional[List[str]] = None) -> Dict[str, Any]:
-    if _contains_emergency_keyword(name):
-        return {"emergency": True, "emergency_source": "name"}
-
-    for line in weekday_descriptions or []:
-        if _contains_emergency_keyword(line):
-            return {"emergency": True, "emergency_source": "hours"}
-
-    return {"emergency": False, "emergency_source": None}
-
-
 def _normalize_category(cat: Optional[str]) -> str:
     if cat == "both":
         return "groomerShop"
@@ -667,13 +608,10 @@ def _normalize_category(cat: Optional[str]) -> str:
 
 
 def _seed_card(s):
-    emergency_meta = _derive_emergency(s.get("name"), s.get("schedule_text"))
     return {k: s[k] for k in ["id", "name", "address", "latitude", "longitude", "category",
                               "rating", "user_rating_count", "image_url", "open_now"]} | {
         "schedule": s["schedule"],
         "tags": s.get("tags", []),
-        "emergency": emergency_meta["emergency"],
-        "emergency_source": emergency_meta["emergency_source"],
     }
 
 
@@ -756,7 +694,8 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
                   "places.regularOpeningHours,nextPageToken")
     payload = {
         "textQuery": query, "languageCode": lang,
-        "locationRestriction": {"rectangle": _bbox(lat, lng, float(radius))},
+        "locationBias": {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": float(radius)}},
+        "rankPreference": "DISTANCE",
         "pageSize": 20,
     }
     if page_token:
@@ -776,9 +715,7 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
         loc = p.get("location", {})
         p_types = p.get("types", [])
         cat = _classify(p_types, name)
-        opening_hours = p.get("regularOpeningHours", {})
-        sched = _periods_to_schedule(opening_hours.get("periods"))
-        emergency_meta = _derive_emergency(name, opening_hours.get("weekdayDescriptions", []))
+        sched = _periods_to_schedule(p.get("regularOpeningHours", {}).get("periods"))
         out.append({
             "id": p.get("id"), "name": name, "address": p.get("formattedAddress", ""),
             "latitude": loc.get("latitude"), "longitude": loc.get("longitude"),
@@ -788,8 +725,6 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
             "open_now": _open_now_from_schedule(sched),
             "schedule": sched,
             "tags": _get_tags(p_types, name),
-            "emergency": emergency_meta["emergency"],
-            "emergency_source": emergency_meta["emergency_source"],
         })
     return out, data.get("nextPageToken")
 
@@ -995,17 +930,14 @@ async def place_details(place_id: str, lang: str = "el"):
         s = next((x for x in SEED_SHOPS if x["id"] == place_id), None)
         if not s:
             raise HTTPException(status_code=404, detail="Not found")
-        emergency_meta = _derive_emergency(s.get("name"), s.get("schedule_text"))
         response = {
             "id": s["id"], "name": s["name"], "address": s["address"],
             "latitude": s["latitude"], "longitude": s["longitude"], "category": _normalize_category(s["category"]),
             "rating": s["rating"], "user_rating_count": s["user_rating_count"],
             "phone": s["phone"], "website": s["website"], "open_now": s["open_now"],
             "image_url": s["image_url"], "photos": _normalize_photo_entries([s["image_url"]]),
-            "schedule": s["schedule"], "schedule_text": s.get("schedule_text"),
+            "schedule": s["schedule"], "schedule_text": None,
             "tags": s.get("tags", []),
-            "emergency": emergency_meta["emergency"],
-            "emergency_source": emergency_meta["emergency_source"],
             "google_reviews": s["reviews"],
         }
         await _cache_put("details", cache_key, response, DETAIL_CACHE_TTL_SECONDS)
@@ -1033,7 +965,6 @@ async def place_details(place_id: str, lang: str = "el"):
         loc = p.get("location", {})
         oh = p.get("regularOpeningHours", {})
         sched = _periods_to_schedule(oh.get("periods"))
-        emergency_meta = _derive_emergency(name, oh.get("weekdayDescriptions", []))
         response = {
             "id": p.get("id"), "name": name, "address": p.get("formattedAddress", ""),
             "latitude": loc.get("latitude"), "longitude": loc.get("longitude"),
@@ -1044,8 +975,6 @@ async def place_details(place_id: str, lang: str = "el"):
             "photos": [ph["name"] for ph in p.get("photos", [])[:PHOTO_DETAIL_LIMIT]], "image_url": None,
             "schedule": sched, "schedule_text": oh.get("weekdayDescriptions", []),
             "tags": _get_tags(p.get("types", []), name),
-            "emergency": emergency_meta["emergency"],
-            "emergency_source": emergency_meta["emergency_source"],
             "google_reviews": [
                 {"author": r.get("authorAttribution", {}).get("displayName", "Google"),
                  "rating": r.get("rating"), "text": r.get("text", {}).get("text", "")}

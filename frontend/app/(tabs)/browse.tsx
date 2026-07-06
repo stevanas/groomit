@@ -75,7 +75,7 @@ export default function BrowseScreen() {
   const [emergencyOnly, setEmergencyOnly] = useState(false);
   const [openNowOnly, setOpenNowOnly] = useState(false);
   const [openUntil, setOpenUntil] = useState<string | null>(null);
-  const [sort, setSort] = useState<"recommended" | "distance" | "rating">("recommended");
+  const [sort, setSort] = useState<"recommended" | "distance" | "rating">("distance");
   const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [providerMode, setProviderMode] = useState<"seed" | "google" | null>(null);
@@ -108,11 +108,10 @@ export default function BrowseScreen() {
   }, []);
 
   const day = params.day ? Number(params.day) : -1;
-  const { shops, region, loading, error, reload } = useShops(category, {
+  const { shops, region, loading, error, reload, loadMore, loadingMore, hasMore } = useShops(category, {
     locationQuery: params.location,
     day,
     lang,
-    disablePagination: true,
   });
 
   const filtered = useMemo(() => {
@@ -327,8 +326,11 @@ export default function BrowseScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: spacing.xxxl }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          onEndReached={() => { if (hasMore && !loadingMore) loadMore(); }}
+          onEndReachedThreshold={0.5}
           ListFooterComponent={
             <View>
+              {loadingMore && <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} />}
               <AdUpsell />
               <AdBanner />
             </View>
