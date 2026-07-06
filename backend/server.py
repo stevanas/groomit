@@ -46,6 +46,16 @@ GEOCODE_CACHE_TTL_SECONDS = 2592000    # 30 days
 PHOTO_CACHE_TTL_SECONDS = 2592000      # 30 days
 PHOTO_DETAIL_LIMIT = 3
 
+# --- Store-level (place) geo cache ---------------------------------------
+# Individual places are persisted in `places_geo` with a 2dsphere index and a
+# `search_tiles` coverage index records which (map-tile + category) combos were
+# already fetched. Once an area is covered, ALL nearby requests for it are served
+# straight from Mongo (no Google call) regardless of query wording or code edits.
+PLACES_GEO_TTL_SECONDS = 604800        # 7 days — matches nearby freshness
+NEARBY_PAGE_SIZE = 20                  # results returned per page
+MAX_GOOGLE_PAGES = 3                   # Google text search caps at ~60 results (3 pages)
+GEO_FETCH_CAP = 300                    # max places pulled from DB for one area query
+
 GOOGLE_CALL_METRICS = {
     "text_search": 0,
     "place_details": 0,
@@ -323,41 +333,36 @@ def _normalize_photo_entries(photos: Optional[List[Any]]) -> List[str]:
     return normalized[:PHOTO_DETAIL_LIMIT]
 
 async def _detail_from_nearby_cache(place_id: str) -> Optional[dict]:
-    entry = await db.api_cache.find_one({"bucket": "nearby", "value.results.id": str(place_id)})
-    if not entry:
+    doc = await db.places_geo.find_one({"_id": str(place_id)})
+    if not doc:
         return None
-    exp = entry.get("expires_at")
+    exp = doc.get("expires_at")
     if exp is not None and exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
     if exp is not None and exp <= _utcnow():
         return None
-    payload = entry.get("value") or {}
-    for place in payload.get("results", []):
-        if str(place.get("id")) != str(place_id):
-            continue
-        photo_name = place.get("photo_name")
-        photo_entries = [photo_name] if photo_name else []
-        return {
-            "id": place.get("id"),
-            "name": place.get("name", ""),
-            "address": place.get("address", ""),
-            "latitude": place.get("latitude"),
-            "longitude": place.get("longitude"),
-            "category": _normalize_category(place.get("category")),
-            "rating": place.get("rating"),
-            "user_rating_count": place.get("user_rating_count", 0),
-            "phone": "",
-            "website": "",
-            "open_now": place.get("open_now"),
-            "photos": _normalize_photo_entries(photo_entries),
-            "image_url": place.get("image_url"),
-            "schedule": place.get("schedule"),
-            "schedule_text": [],
-            "tags": place.get("tags", []),
-            "google_reviews": [],
-            "source": "budget_cap_cached_summary",
-        }
-    return None
+    photo_name = doc.get("photo_name")
+    photo_entries = [photo_name] if photo_name else []
+    return {
+        "id": doc.get("id"),
+        "name": doc.get("name", ""),
+        "address": doc.get("address", ""),
+        "latitude": doc.get("latitude"),
+        "longitude": doc.get("longitude"),
+        "category": _normalize_category(doc.get("category")),
+        "rating": doc.get("rating"),
+        "user_rating_count": doc.get("user_rating_count", 0),
+        "phone": "",
+        "website": "",
+        "open_now": doc.get("open_now"),
+        "photos": _normalize_photo_entries(photo_entries),
+        "image_url": doc.get("image_url"),
+        "schedule": doc.get("schedule"),
+        "schedule_text": [],
+        "tags": doc.get("tags", []),
+        "google_reviews": [],
+        "source": "budget_cap_cached_summary",
+    }
 
 
 def _google_places_enabled() -> bool:
@@ -739,6 +744,107 @@ async def _google_text_search_for_category(query, lat, lng, radius, lang, catego
     return out, token
 
 
+# --- Store-level geo cache helpers ---------------------------------------
+def _tile_id(lat: float, lng: float, target_categories: List[str], lang: str) -> str:
+    """Stable coverage key based on geography + category set + language.
+    Independent of query wording, so editing the query never invalidates it."""
+    cats = ",".join(sorted(target_categories))
+    return f"{_rounded_coord(lat)}|{_rounded_coord(lng)}|{cats}|{lang}"
+
+
+async def _tile_is_covered(tile_id: str) -> bool:
+    entry = await db.search_tiles.find_one({"_id": tile_id})
+    if not entry:
+        return False
+    exp = entry.get("expires_at")
+    if exp is not None and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    return exp is None or exp > _utcnow()
+
+
+async def _mark_tile_covered(tile_id: str):
+    await db.search_tiles.replace_one(
+        {"_id": tile_id},
+        {"_id": tile_id, "expires_at": _utcnow() + timedelta(seconds=PLACES_GEO_TTL_SECONDS)},
+        upsert=True,
+    )
+
+
+async def _upsert_places_geo(places: List[dict], lang: str):
+    """Persist each place individually so it can be reused by any future query."""
+    now = _utcnow()
+    expires = now + timedelta(seconds=PLACES_GEO_TTL_SECONDS)
+    for p in places:
+        pid = p.get("id")
+        plat, plng = p.get("latitude"), p.get("longitude")
+        if not pid or plat is None or plng is None:
+            continue
+        doc = {
+            "_id": str(pid),
+            "id": str(pid),
+            "name": p.get("name", ""),
+            "address": p.get("address", ""),
+            "latitude": plat,
+            "longitude": plng,
+            "category": _normalize_category(p.get("category")),
+            "rating": p.get("rating"),
+            "user_rating_count": p.get("user_rating_count", 0),
+            "photo_name": p.get("photo_name"),
+            "image_url": p.get("image_url"),
+            "open_now": p.get("open_now"),
+            "schedule": p.get("schedule"),
+            "tags": p.get("tags", []),
+            "lang": lang,
+            "location": {"type": "Point", "coordinates": [float(plng), float(plat)]},
+            "refreshed_at": now,
+            "expires_at": expires,
+        }
+        await db.places_geo.replace_one({"_id": doc["_id"]}, doc, upsert=True)
+
+
+def _geo_doc_to_card(doc: dict) -> dict:
+    photo_name = doc.get("photo_name")
+    return {
+        "id": doc.get("id"),
+        "name": doc.get("name", ""),
+        "address": doc.get("address", ""),
+        "latitude": doc.get("latitude"),
+        "longitude": doc.get("longitude"),
+        "category": _normalize_category(doc.get("category")),
+        "rating": doc.get("rating"),
+        "user_rating_count": doc.get("user_rating_count", 0),
+        "photo_name": photo_name,
+        "image_url": doc.get("image_url"),
+        "open_now": doc.get("open_now"),
+        "schedule": doc.get("schedule"),
+        "tags": doc.get("tags", []),
+    }
+
+
+async def _serve_nearby_from_geo(lat: float, lng: float, radius: int,
+                                 categories: List[str], lang: str, offset: int) -> dict:
+    """Serve a distance-sorted, paginated nearby result set from the local DB only."""
+    radius_m = float(min(radius, 50000))
+    cursor = db.places_geo.find({
+        "location": {
+            "$near": {
+                "$geometry": {"type": "Point", "coordinates": [float(lng), float(lat)]},
+                "$maxDistance": radius_m,
+            }
+        }
+    }).limit(GEO_FETCH_CAP)
+    matched = []
+    async for doc in cursor:
+        cat = _normalize_category(doc.get("category"))
+        if _matches_category(cat, doc.get("tags", []), categories):
+            matched.append(_geo_doc_to_card(doc))
+    page = matched[offset:offset + NEARBY_PAGE_SIZE]
+    has_more = len(matched) > offset + NEARBY_PAGE_SIZE
+    next_token = str(offset + NEARBY_PAGE_SIZE) if has_more else None
+    return {"results": page, "next_page_token": next_token, "source": "db_geo"}
+
+
+
 @api_router.get("/places/autocomplete")
 async def places_autocomplete(input: str, lang: str = "el",
                               lat: Optional[float] = None, lng: Optional[float] = None):
@@ -833,55 +939,59 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
 
     if _google_places_enabled():
         target_categories = ["groomer", "shop", "groomerShop", "vet", "pharmacy"] if "all" in categories else categories
-        # NOTE: `day` is intentionally excluded from the cache key. Open/closed is
-        # derived client-side from each place's weekly schedule, so the live Google
-        # result set is identical regardless of the selected day. Including `day`
-        # here caused redundant PAID text-search calls for the same stores whenever
-        # the user switched the "When" picker.
-        cache_key = (
-            _rounded_coord(lat),
-            _rounded_coord(lng),
-            min(radius, 50000),
-            ",".join(sorted(target_categories)),
-            lang,
-            page_token or "",
-        )
-        cached = await _cache_get("nearby", cache_key)
-        if cached is not None:
-            return cached
 
-        reason = _budget_reason("text_search")
-        if reason:
-            _record_budget_block("text_search", reason)
-            return {"results": [], "next_page_token": None, "source": "budget_cap"}
+        # page_token is now a simple integer offset (string) served from our DB.
+        try:
+            offset = max(0, int(page_token)) if page_token else 0
+        except (TypeError, ValueError):
+            offset = 0
 
-        query = _combined_category_query(target_categories)
-        forced_category = target_categories[0] if len(target_categories) == 1 else None
-        merged, merged_next = await _google_text_search_for_category(
-            query,
-            lat,
-            lng,
-            radius,
-            lang,
-            forced_category,
-            page_token,
-        )
+        tile_id = _tile_id(lat, lng, target_categories, lang)
+        covered = await _tile_is_covered(tile_id)
 
-        results = []
-        radius_km = min(radius, 50000) / 1000.0
-        for r in merged:
-            r["category"] = _normalize_category(r.get("category"))
-            rlat, rlng = r.get("latitude"), r.get("longitude")
-            if rlat is None or rlng is None:
-                continue
-            if _haversine_km(lat, lng, rlat, rlng) > radius_km:
-                continue  # drop far-away matches the provider may still include
-            if _matches_category(r["category"], r.get("tags", []), categories):
-                results.append(r)
+        # Only ever call Google for an area/category that has never been fetched
+        # (or has expired). Once covered, everything is served from the DB for free.
+        if not covered:
+            reason = _budget_reason("text_search")
+            if reason:
+                _record_budget_block("text_search", reason)
+                # Best effort: serve whatever we already have for this area.
+                fallback = await _serve_nearby_from_geo(lat, lng, radius, categories, lang, offset)
+                if not fallback["results"]:
+                    return {"results": [], "next_page_token": None, "source": "budget_cap"}
+                fallback["source"] = "budget_cap_geo"
+                return fallback
 
-        response = {"results": results, "next_page_token": merged_next, "source": "google"}
-        await _cache_put("nearby", cache_key, response, NEARBY_CACHE_TTL_SECONDS)
-        return response
+            query = _combined_category_query(target_categories)
+            forced_category = target_categories[0] if len(target_categories) == 1 else None
+
+            # Fetch up to MAX_GOOGLE_PAGES so all available results for the tile are
+            # persisted at once; subsequent pages are then served from the DB.
+            collected: List[dict] = []
+            token = None
+            for _ in range(MAX_GOOGLE_PAGES):
+                merged, token = await _google_text_search_for_category(
+                    query, lat, lng, radius, lang, forced_category, token,
+                )
+                collected.extend(merged)
+                if not token:
+                    break
+
+            radius_km = min(radius, 50000) / 1000.0
+            to_store = []
+            for r in collected:
+                r["category"] = _normalize_category(r.get("category"))
+                rlat, rlng = r.get("latitude"), r.get("longitude")
+                if rlat is None or rlng is None:
+                    continue
+                if _haversine_km(lat, lng, rlat, rlng) > radius_km:
+                    continue  # drop far-away matches the provider may still include
+                to_store.append(r)
+
+            await _upsert_places_geo(to_store, lang)
+            await _mark_tile_covered(tile_id)
+
+        return await _serve_nearby_from_geo(lat, lng, radius, categories, lang, offset)
     
     # Seed fallback — select places matching any of the categories
     results = []
@@ -1066,6 +1176,10 @@ async def startup():
     await db.favorites.create_index([("user_id", 1), ("place_id", 1)], unique=True)
     await db.api_cache.create_index("expires_at", expireAfterSeconds=0)
     await db.api_cache.create_index("bucket")
+    await db.places_geo.create_index([("location", "2dsphere")])
+    await db.places_geo.create_index("category")
+    await db.places_geo.create_index("expires_at", expireAfterSeconds=0)
+    await db.search_tiles.create_index("expires_at", expireAfterSeconds=0)
     await _load_usage()
 
 
