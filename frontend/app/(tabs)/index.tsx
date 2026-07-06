@@ -5,6 +5,7 @@ import {
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, radius, shadow, fonts, ThemeColors, getCat } from "@/src/theme";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
@@ -69,6 +70,23 @@ export default function FindScreen() {
   const [providerMode, setProviderMode] = useState<"seed" | "google" | null>(null);
 
   const { shops, region } = useShops("all", { lang, enabled: false, disablePagination: true });
+  const [myLoc, setMyLoc] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Center the home map preview on the user's real location (free — no API call).
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== "granted") return;
+        const pos =
+          (await Location.getLastKnownPositionAsync()) ||
+          (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+        if (pos) setMyLoc({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      } catch { /* keep default region */ }
+    })();
+  }, []);
+
+  const mapRegion = myLoc || region;
 
   useEffect(() => {
     if (!__DEV__) return;
@@ -158,12 +176,12 @@ export default function FindScreen() {
         <Text style={styles.quick}>{t("map.near")}</Text>
         <MapPreview
           shops={shops}
-          region={region}
+          region={mapRegion}
           onPress={() =>
             !mapsDisabled &&
             router.push({
               pathname: "/map",
-              params: { lat: String(region.latitude), lng: String(region.longitude) },
+              params: { lat: String(mapRegion.latitude), lng: String(mapRegion.longitude) },
             })
           }
           testID="home-map-preview"

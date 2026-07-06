@@ -12,9 +12,10 @@ import MapShops from "@/src/components/MapShops";
 import AdBanner from "@/src/components/AdBanner";
 import AdUpsell from "@/src/components/AdUpsell";
 import { useShops } from "@/src/useShops";
-import { apiGet } from "@/src/api";
+import { apiGet, photoUrl } from "@/src/api";
 import { useI18n } from "@/src/i18n";
-import { spacing, radius, ThemeColors } from "@/src/theme";
+import { spacing, radius, shadow, getCat, ThemeColors } from "@/src/theme";
+import { Image } from "expo-image";
 import { useTheme, useThemedStyles } from "@/src/theme-context";
 
 const IS_WEB = Platform.OS === "web";
@@ -75,9 +76,10 @@ export default function BrowseScreen() {
   const [emergencyOnly, setEmergencyOnly] = useState(false);
   const [openNowOnly, setOpenNowOnly] = useState(false);
   const [openUntil, setOpenUntil] = useState<string | null>(null);
-  const [sort, setSort] = useState<"recommended" | "distance" | "rating">("distance");
+  const [sort, setSort] = useState<"distance" | "rating">("distance");
   const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [mapSelected, setMapSelected] = useState<any>(null);
   const [providerMode, setProviderMode] = useState<"seed" | "google" | null>(null);
 
   const todayIdx = (new Date().getDay() + 6) % 7;
@@ -136,21 +138,17 @@ export default function BrowseScreen() {
     }
     if (sort === "rating") {
       res = [...res].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    } else if (sort === "distance") {
-      res = [...res].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
     } else {
-      res = [...res].sort((a, b) => {
-        const openScore = Number(Boolean(b.open_now)) - Number(Boolean(a.open_now));
-        if (openScore !== 0) return openScore;
-        const distScore = (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9);
-        if (distScore !== 0) return distScore;
-        const ratingScore = (b.rating || 0) - (a.rating || 0);
-        if (ratingScore !== 0) return ratingScore;
-        return (a.name || "").localeCompare(b.name || "");
-      });
+      res = [...res].sort((a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9));
     }
     return res;
   }, [shops, region, category, query, emergencyOnly, openNowOnly, openUntil, sort, todayIdx]);
+
+  // Rating sort must consider ALL results in the scanned area (a far 5-star should rank first),
+  // so load every remaining page. Pages are Mongo-cached -> no new API calls for a scanned area.
+  useEffect(() => {
+    if (sort === "rating" && hasMore && !loadingMore && !loading) loadMore();
+  }, [sort, hasMore, loadingMore, loading]);
 
   // Build "open until" options from real data: hourly close times today (sensible range only).
   const untilOptions = useMemo(() => {
@@ -176,7 +174,7 @@ export default function BrowseScreen() {
     emergencyOnly ||
     openNowOnly ||
     openUntil !== null ||
-    sort !== "recommended";
+    sort !== "distance";
 
   const clearFilters = () => {
     setCategory("groomer");
@@ -184,7 +182,7 @@ export default function BrowseScreen() {
     setEmergencyOnly(false);
     setOpenNowOnly(false);
     setOpenUntil(null);
-    setSort("recommended");
+    setSort("distance");
   };
 
   const go = (s: any) => router.push(`/shop/${s.id}`);
@@ -272,7 +270,7 @@ export default function BrowseScreen() {
           <Pressable style={styles.sortSheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.sortTitle}>{t("sort.label")}</Text>
             <ScrollView>
-              {(["recommended", "distance", "rating"] as const).map((opt) => (
+              {(["distance", "rating"] as const).map((opt) => (
                 <Pressable
                   key={opt}
                   style={styles.sortRow}
@@ -311,7 +309,31 @@ export default function BrowseScreen() {
         </View>
       ) : viewMode === "map" && !IS_WEB ? (
         <View style={{ flex: 1 }}>
-          <MapShops shops={filtered} region={region} onSelect={go} />
+          <MapShops shops={filtered} region={region} focusId={mapSelected?.id} onSelect={setMapSelected} />
+          {mapSelected && (
+            <View style={[styles.cardWrap, { paddingBottom: insets.bottom + spacing.md }]}>
+              <Pressable style={styles.mapCard} onPress={() => go(mapSelected)} testID="browse-map-card">
+                <Image source={{ uri: photoUrl(mapSelected, { size: "preview" }) || undefined }} style={styles.mapCardImg} contentFit="cover" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mapCardName} numberOfLines={1}>{mapSelected.name}</Text>
+                  <View style={styles.mapCardMeta}>
+                    <Ionicons name="star" size={13} color={colors.warning} />
+                    <Text style={styles.mapCardRating}>{mapSelected.rating ?? "–"}</Text>
+                    {mapSelected.user_rating_count ? <Text style={styles.mapCardCount}>({mapSelected.user_rating_count})</Text> : null}
+                  </View>
+                  {mapSelected.open_now != null && (
+                    <Text style={[styles.mapCardOpen, { color: mapSelected.open_now ? colors.success : colors.muted }]}>
+                      {mapSelected.open_now ? t("common.open") : t("common.closed")}
+                    </Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={22} color={colors.muted} />
+              </Pressable>
+              <Pressable style={styles.mapDismiss} onPress={() => setMapSelected(null)} testID="browse-map-dismiss">
+                <Ionicons name="close-circle" size={26} color={colors.muted} />
+              </Pressable>
+            </View>
+          )}
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
@@ -374,4 +396,13 @@ const makeStyles = (colors: ThemeColors) =>
   emptyText: { color: colors.muted, fontSize: 15, textAlign: "center", fontWeight: "600" },
   retryBtn: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: radius.pill },
   retryText: { color: colors.onBrand, fontWeight: "800" },
+  cardWrap: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.lg },
+  mapCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, ...shadow.float },
+  mapCardImg: { width: 56, height: 56, borderRadius: radius.md, backgroundColor: colors.surfaceTertiary },
+  mapCardName: { fontSize: 16, fontWeight: "800", color: colors.onSurface },
+  mapCardMeta: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
+  mapCardRating: { fontSize: 13, fontWeight: "700", color: colors.onSurface },
+  mapCardCount: { fontSize: 12, color: colors.muted },
+  mapCardOpen: { fontSize: 12, fontWeight: "700", marginTop: 2 },
+  mapDismiss: { position: "absolute", top: -12, right: spacing.lg + 4, backgroundColor: colors.surface, borderRadius: 14 },
 });

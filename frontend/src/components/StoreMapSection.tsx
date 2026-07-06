@@ -19,7 +19,14 @@ export default function StoreMapSection({ shop }: { shop: any }) {
         !mapsDisabled &&
         router.push({
           pathname: "/map",
-          params: { lat: String(shop.latitude), lng: String(shop.longitude), focusId: String(shop.id) },
+          params: {
+          lat: String(shop.latitude),
+          lng: String(shop.longitude),
+          focusId: String(shop.id),
+          category: shop.category || "shop",
+          name: shop.name || "",
+          rating: shop.rating != null ? String(shop.rating) : "",
+        },
         })
       }
       testID="store-map-preview"

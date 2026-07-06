@@ -18,13 +18,31 @@ export default function MapScreen() {
   const { lang } = useI18n();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const params = useLocalSearchParams<{ lat?: string; lng?: string; focusId?: string; category?: string }>();
+  const params = useLocalSearchParams<{ lat?: string; lng?: string; focusId?: string; category?: string; name?: string; rating?: string }>();
 
   const center =
     params.lat && params.lng ? { latitude: Number(params.lat), longitude: Number(params.lng) } : undefined;
 
   const { shops, region, loading } = useShops("all", { lang, center, disablePagination: true });
   const [selected, setSelected] = useState<any>(null);
+
+  // Guarantee the focused shop (e.g. opened from a shop's detail page) is always shown & highlighted,
+  // even if the generic nearby search didn't include it.
+  const shopsWithFocus = React.useMemo(() => {
+    if (!params.focusId || !center) return shops;
+    if (shops.some((s) => String(s.id) === String(params.focusId))) return shops;
+    return [
+      {
+        id: params.focusId,
+        latitude: center.latitude,
+        longitude: center.longitude,
+        name: params.name || "",
+        category: params.category || "shop",
+        rating: params.rating ? Number(params.rating) : undefined,
+      },
+      ...shops,
+    ];
+  }, [shops, params.focusId, params.name, params.category, params.rating, center]);
 
   const cat = selected ? getCat(selected.category) : null;
   const catLabel = (c?: string) =>
@@ -33,7 +51,7 @@ export default function MapScreen() {
   return (
     <View style={styles.container} testID="map-screen">
       <MapShops
-        shops={shops}
+        shops={shopsWithFocus}
         region={center || region}
         focusId={params.focusId}
         onSelect={(s) => setSelected(s)}
