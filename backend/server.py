@@ -752,20 +752,28 @@ def _tile_id(lat: float, lng: float, target_categories: List[str], lang: str) ->
     return f"{_rounded_coord(lat)}|{_rounded_coord(lng)}|{cats}|{lang}"
 
 
-async def _tile_is_covered(tile_id: str) -> bool:
+async def _get_tile(tile_id: str) -> Optional[dict]:
+    """Return the coverage record for a tile if it exists and is still fresh."""
     entry = await db.search_tiles.find_one({"_id": tile_id})
     if not entry:
-        return False
+        return None
     exp = entry.get("expires_at")
     if exp is not None and exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
-    return exp is None or exp > _utcnow()
+    if exp is not None and exp <= _utcnow():
+        return None
+    return entry
 
 
-async def _mark_tile_covered(tile_id: str):
+async def _save_tile(tile_id: str, next_token: Optional[str], pages_fetched: int):
     await db.search_tiles.replace_one(
         {"_id": tile_id},
-        {"_id": tile_id, "expires_at": _utcnow() + timedelta(seconds=PLACES_GEO_TTL_SECONDS)},
+        {
+            "_id": tile_id,
+            "next_token": next_token,
+            "pages_fetched": pages_fetched,
+            "expires_at": _utcnow() + timedelta(seconds=PLACES_GEO_TTL_SECONDS),
+        },
         upsert=True,
     )
 
@@ -821,9 +829,8 @@ def _geo_doc_to_card(doc: dict) -> dict:
     }
 
 
-async def _serve_nearby_from_geo(lat: float, lng: float, radius: int,
-                                 categories: List[str], lang: str, offset: int) -> dict:
-    """Serve a distance-sorted, paginated nearby result set from the local DB only."""
+async def _matched_places(lat: float, lng: float, radius: int, categories: List[str]) -> List[dict]:
+    """All stored places within radius (distance-sorted) that match the requested categories."""
     radius_m = float(min(radius, 50000))
     cursor = db.places_geo.find({
         "location": {
@@ -838,10 +845,7 @@ async def _serve_nearby_from_geo(lat: float, lng: float, radius: int,
         cat = _normalize_category(doc.get("category"))
         if _matches_category(cat, doc.get("tags", []), categories):
             matched.append(_geo_doc_to_card(doc))
-    page = matched[offset:offset + NEARBY_PAGE_SIZE]
-    has_more = len(matched) > offset + NEARBY_PAGE_SIZE
-    next_token = str(offset + NEARBY_PAGE_SIZE) if has_more else None
-    return {"results": page, "next_page_token": next_token, "source": "db_geo"}
+    return matched
 
 
 
@@ -940,58 +944,75 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
     if _google_places_enabled():
         target_categories = ["groomer", "shop", "groomerShop", "vet", "pharmacy"] if "all" in categories else categories
 
-        # page_token is now a simple integer offset (string) served from our DB.
+        # page_token is a simple integer offset (string) served from our DB.
         try:
             offset = max(0, int(page_token)) if page_token else 0
         except (TypeError, ValueError):
             offset = 0
 
         tile_id = _tile_id(lat, lng, target_categories, lang)
-        covered = await _tile_is_covered(tile_id)
+        query = _combined_category_query(target_categories)
+        forced_category = target_categories[0] if len(target_categories) == 1 else None
+        radius_km = min(radius, 50000) / 1000.0
+        need = offset + NEARBY_PAGE_SIZE
+        budget_blocked = False
 
-        # Only ever call Google for an area/category that has never been fetched
-        # (or has expired). Once covered, everything is served from the DB for free.
-        if not covered:
+        # Ensure the DB holds enough matched places to satisfy the requested page.
+        # Google is called at most once per page and ONLY when our stored data
+        # runs short — so you pay only for the results you actually page through.
+        while True:
+            matched = await _matched_places(lat, lng, radius, categories)
+            if len(matched) >= need:
+                break
+
+            tile = await _get_tile(tile_id)
+            if tile is None:
+                page_tok = None
+                new_pages = 1
+            elif tile.get("next_token") and tile.get("pages_fetched", 0) < MAX_GOOGLE_PAGES:
+                page_tok = tile["next_token"]
+                new_pages = tile.get("pages_fetched", 0) + 1
+            else:
+                break  # nothing more Google can give us for this tile
+
             reason = _budget_reason("text_search")
             if reason:
                 _record_budget_block("text_search", reason)
-                # Best effort: serve whatever we already have for this area.
-                fallback = await _serve_nearby_from_geo(lat, lng, radius, categories, lang, offset)
-                if not fallback["results"]:
-                    return {"results": [], "next_page_token": None, "source": "budget_cap"}
-                fallback["source"] = "budget_cap_geo"
-                return fallback
+                budget_blocked = True
+                break
 
-            query = _combined_category_query(target_categories)
-            forced_category = target_categories[0] if len(target_categories) == 1 else None
-
-            # Fetch up to MAX_GOOGLE_PAGES so all available results for the tile are
-            # persisted at once; subsequent pages are then served from the DB.
-            collected: List[dict] = []
-            token = None
-            for _ in range(MAX_GOOGLE_PAGES):
+            try:
                 merged, token = await _google_text_search_for_category(
-                    query, lat, lng, radius, lang, forced_category, token,
+                    query, lat, lng, radius, lang, forced_category, page_tok,
                 )
-                collected.extend(merged)
-                if not token:
-                    break
+            except HTTPException:
+                await _save_tile(tile_id, None, new_pages)  # stop trying this tile
+                break
 
-            radius_km = min(radius, 50000) / 1000.0
             to_store = []
-            for r in collected:
+            for r in merged:
                 r["category"] = _normalize_category(r.get("category"))
                 rlat, rlng = r.get("latitude"), r.get("longitude")
                 if rlat is None or rlng is None:
                     continue
                 if _haversine_km(lat, lng, rlat, rlng) > radius_km:
-                    continue  # drop far-away matches the provider may still include
+                    continue
                 to_store.append(r)
-
             await _upsert_places_geo(to_store, lang)
-            await _mark_tile_covered(tile_id)
+            await _save_tile(tile_id, token, new_pages)
+            if not merged:
+                break  # provider returned nothing further
 
-        return await _serve_nearby_from_geo(lat, lng, radius, categories, lang, offset)
+        matched = await _matched_places(lat, lng, radius, categories)
+        tile = await _get_tile(tile_id)
+        more_in_db = len(matched) > need
+        more_in_google = bool(tile and tile.get("next_token") and tile.get("pages_fetched", 0) < MAX_GOOGLE_PAGES)
+        page = matched[offset:need]
+        next_next = str(need) if (more_in_db or more_in_google) else None
+        source = "budget_cap_geo" if (budget_blocked and not page) else "db_geo"
+        if budget_blocked and not matched:
+            return {"results": [], "next_page_token": None, "source": "budget_cap"}
+        return {"results": page, "next_page_token": next_next, "source": source}
     
     # Seed fallback — select places matching any of the categories
     results = []
