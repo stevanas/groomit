@@ -206,6 +206,13 @@ export default function ShopDetail() {
             </View>
           )}
 
+          {shop.emergency === true && (
+            <View style={styles.emergencyBadge} testID="shop-emergency-badge">
+              <Ionicons name="alert-circle" size={14} color={colors.onBrand} />
+              <Text style={styles.emergencyText}>{t("shop.emergency")}</Text>
+            </View>
+          )}
+
           {/* Contact */}
           <Text style={styles.sectionTitle}>{t("shop.contact")}</Text>
           <View style={styles.infoCard}>
@@ -394,6 +401,8 @@ const makeStyles = (colors: ThemeColors) =>
   ratingCount: { fontSize: 14, color: colors.muted, flexShrink: 1 },
   openBadge: { alignSelf: "flex-start", marginTop: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill },
   openText: { fontSize: 12, fontWeight: "800" },
+  emergencyBadge: { alignSelf: "flex-start", marginTop: spacing.xs, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.error },
+  emergencyText: { fontSize: 12, fontWeight: "800", color: colors.onBrand },
   sectionTitle: { fontSize: 18, fontWeight: "800", color: colors.onSurface, fontFamily: fonts.display, marginTop: spacing.lg },
   infoCard: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, ...shadow.card },
   infoRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg },

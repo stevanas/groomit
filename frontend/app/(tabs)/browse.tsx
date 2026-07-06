@@ -72,6 +72,7 @@ export default function BrowseScreen() {
   const initCategory = parseCategoryParam(params.category);
   const [category, setCategory] = useState<string | string[]>(initCategory);
   const [query, setQuery] = useState("");
+  const [emergencyOnly, setEmergencyOnly] = useState(false);
   const [openNowOnly, setOpenNowOnly] = useState(false);
   const [openUntil, setOpenUntil] = useState<string | null>(null);
   const [sort, setSort] = useState<"recommended" | "distance" | "rating">("recommended");
@@ -120,6 +121,7 @@ export default function BrowseScreen() {
       .filter((s) => categoryMatchesSelected(s, category))
       .map((s) => ({ ...s, distanceKm: distanceKm(region, s.latitude, s.longitude) }));
     if (q) res = res.filter((s) => s.name.toLowerCase().includes(q) || (s.address || "").toLowerCase().includes(q));
+    if (emergencyOnly) res = res.filter((s) => s.emergency === true);
     if (openNowOnly) res = res.filter((s) => s.open_now === true);
     if (openUntil === "24h") {
       res = res.filter((s) => {
@@ -149,7 +151,7 @@ export default function BrowseScreen() {
       });
     }
     return res;
-  }, [shops, region, category, query, openNowOnly, openUntil, sort, todayIdx]);
+  }, [shops, region, category, query, emergencyOnly, openNowOnly, openUntil, sort, todayIdx]);
 
   // Build "open until" options from real data: hourly close times today (sensible range only).
   const untilOptions = useMemo(() => {
@@ -172,6 +174,7 @@ export default function BrowseScreen() {
   const hasActiveFilters =
     (Array.isArray(category) ? !(category.length === 1 && category[0] === "groomer") : category !== "groomer") ||
     query.trim() !== "" ||
+    emergencyOnly ||
     openNowOnly ||
     openUntil !== null ||
     sort !== "recommended";
@@ -179,6 +182,7 @@ export default function BrowseScreen() {
   const clearFilters = () => {
     setCategory("groomer");
     setQuery("");
+    setEmergencyOnly(false);
     setOpenNowOnly(false);
     setOpenUntil(null);
     setSort("recommended");
@@ -219,6 +223,24 @@ export default function BrowseScreen() {
       <CategoryChips value={category} onChange={setCategory} />
 
       <View style={styles.filterRow}>
+        <Pressable
+          style={[styles.filterChip, emergencyOnly && styles.filterChipActive, emergencyOnly && { backgroundColor: colors.error, borderColor: colors.error }]}
+          onPress={() => setEmergencyOnly((v) => !v)}
+          testID="filter-emergency"
+        >
+          <Ionicons name="alert-circle" size={15} color={emergencyOnly ? colors.onBrand : colors.error} />
+          <Text
+            style={[
+              styles.filterText,
+              { color: colors.error },
+              emergencyOnly && styles.filterTextActive,
+            ]}
+            numberOfLines={1}
+          >
+            {t("filter.emergency")}
+          </Text>
+        </Pressable>
+
         <Pressable
           style={[styles.filterChip, openNowOnly && styles.filterChipActive]}
           onPress={() => setOpenNowOnly((v) => !v)}

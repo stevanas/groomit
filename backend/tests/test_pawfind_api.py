@@ -82,12 +82,14 @@ class TestNearbySchema:
             pytest.skip("No shop results returned for Athens center")
 
         required_keys = {"id", "name", "address", "latitude", "longitude",
-                         "category", "rating", "open_now", "schedule"}
+                         "category", "rating", "open_now", "schedule",
+                         "emergency", "emergency_source"}
         for item in data["results"]:
             missing = required_keys - set(item.keys())
             assert not missing, f"Missing keys {missing} in {item}"
             # open_now must be boolean or None (derived)
             assert isinstance(item["open_now"], bool) or item["open_now"] is None
+            assert isinstance(item["emergency"], bool)
             # schedule must be 7-entry list or None
             if item["schedule"] is not None:
                 assert isinstance(item["schedule"], list)
@@ -110,6 +112,21 @@ class TestNearbySchema:
         bool_count = sum(1 for x in results if isinstance(x["open_now"], bool))
         # At least some places should have schedules; assert non-zero
         assert bool_count > 0, f"open_now never derived across {len(results)} places"
+
+    def test_seed_mode_exposes_emergency_examples(self, client):
+        r = client.get(
+            f"{API}/places/nearby",
+            params={"lat": ATHENS_LAT, "lng": ATHENS_LNG, "radius": RADIUS,
+                    "category": "all", "day": -1, "lang": LANG},
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        if data.get("source") != "seed":
+            pytest.skip("Emergency seed coverage is only guaranteed in seed mode")
+
+        emergency_results = [x for x in data.get("results", []) if x.get("emergency") is True]
+        assert emergency_results, "Seed dataset should include at least one emergency result"
+        assert any(x.get("emergency_source") in {"name", "hours"} for x in emergency_results)
 
 
 # ---------------- Category filtering ----------------
