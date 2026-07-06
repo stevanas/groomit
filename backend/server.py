@@ -833,12 +833,16 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
 
     if _google_places_enabled():
         target_categories = ["groomer", "shop", "groomerShop", "vet", "pharmacy"] if "all" in categories else categories
+        # NOTE: `day` is intentionally excluded from the cache key. Open/closed is
+        # derived client-side from each place's weekly schedule, so the live Google
+        # result set is identical regardless of the selected day. Including `day`
+        # here caused redundant PAID text-search calls for the same stores whenever
+        # the user switched the "When" picker.
         cache_key = (
             _rounded_coord(lat),
             _rounded_coord(lng),
             min(radius, 50000),
             ",".join(sorted(target_categories)),
-            day,
             lang,
             page_token or "",
         )
