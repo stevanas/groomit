@@ -44,6 +44,7 @@ DETAIL_CACHE_TTL_SECONDS = 604800      # 7 days
 AUTOCOMPLETE_CACHE_TTL_SECONDS = 86400 # 1 day
 GEOCODE_CACHE_TTL_SECONDS = 2592000    # 30 days
 PHOTO_CACHE_TTL_SECONDS = 2592000      # 30 days
+NEGATIVE_PHOTO_TTL_SECONDS = 21600     # 6h — remember failed/quota'd photos to avoid retry storms
 PHOTO_DETAIL_LIMIT = 3
 
 # --- Store-level (place) geo cache ---------------------------------------
@@ -754,10 +755,10 @@ async def _google_text_search(query, lat, lng, radius, lang, page_token=None):
     headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY, "X-Goog-FieldMask": field_mask}
     async with httpx.AsyncClient(timeout=15.0) as hc:
         resp = await hc.post(url, json=payload, headers=headers)
-    _record_google_call("text_search")
     if resp.status_code != 200:
         logger.error("Google places error %s: %s", resp.status_code, resp.text[:300])
         raise HTTPException(status_code=502, detail="Places provider error")
+    _record_google_call("text_search")  # count only successful (billable) calls
     data = resp.json()
     out = []
     for p in data.get("places", []):
@@ -926,10 +927,10 @@ async def places_autocomplete(input: str, lang: str = "el",
     headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY}
     async with httpx.AsyncClient(timeout=10.0) as hc:
         resp = await hc.post(url, json=body, headers=headers)
-    _record_google_call("autocomplete")
     if resp.status_code != 200:
         logger.error("Autocomplete error %s: %s", resp.status_code, resp.text[:200])
         return _seed_autocomplete(query) | {"source": "seed_fallback"}
+    _record_google_call("autocomplete")  # count only successful calls
     out = []
     for s in resp.json().get("suggestions", []):
         pp = s.get("placePrediction")
@@ -964,9 +965,9 @@ async def geocode(q: str, lang: str = "el"):
         params = {"address": q, "key": GOOGLE_MAPS_API_KEY, "language": lang}
         async with httpx.AsyncClient(timeout=15.0) as hc:
             resp = await hc.get(url, params=params)
-        _record_google_call("geocode")
-        data = resp.json()
+        data = resp.json() if resp.status_code == 200 else {}
         if data.get("results"):
+            _record_google_call("geocode")  # count only successful calls
             r = data["results"][0]
             loc = r["geometry"]["location"]
             response = {"latitude": loc["lat"], "longitude": loc["lng"], "label": r.get("formatted_address", q)}
@@ -1084,22 +1085,32 @@ async def places_nearby(lat: float, lng: float, radius: int = 8000,
 async def place_photo(name: str, max_width: int = 800):
     if not _google_places_enabled():
         raise HTTPException(status_code=404, detail="No provider")
-    cache_key = (name, max(200, min(max_width, 1600)))
+    # Fix 3: normalize to a single size so the same photo is fetched & stored ONCE
+    # (the app asks for 400px previews and 800px details; we serve one 800px image
+    # for both, halving photo fetches).
+    norm_width = 800
+    cache_key = (name, norm_width)
     cached = await _cache_get("photo", cache_key)
     if cached is not None:
+        if cached.get("missing"):
+            raise HTTPException(status_code=404, detail="Photo unavailable")
         return Response(content=cached["content"], media_type=cached["media_type"], headers=PHOTO_RESPONSE_HEADERS)
     reason = _budget_reason("photo")
     if reason:
         _record_budget_block("photo", reason)
         raise HTTPException(status_code=503, detail=_budget_cap_detail("photo", "photo"))
     url = f"https://places.googleapis.com/v1/{name}/media"
-    params = {"key": GOOGLE_MAPS_API_KEY, "maxWidthPx": cache_key[1]}
+    params = {"key": GOOGLE_MAPS_API_KEY, "maxWidthPx": norm_width}
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as hc:
         resp = await hc.get(url, params=params)
-    _record_google_call("photo")
     if resp.status_code != 200:
         logger.error("Photo error %s: %s", resp.status_code, resp.text[:200])
-        raise HTTPException(status_code=502, detail="Photo error")
+        # Fix 2: remember the failure briefly so a quota-exhausted photo does NOT
+        # re-hit Google (and re-count) every time the store is opened. Users are fine
+        # with a missing photo when the quota is hit.
+        await _cache_put("photo", cache_key, {"missing": True}, NEGATIVE_PHOTO_TTL_SECONDS)
+        raise HTTPException(status_code=404, detail="Photo unavailable")
+    _record_google_call("photo")  # count only successful (billable) fetches
     media_type = resp.headers.get("Content-Type", "image/jpeg")
     payload = {"content": resp.content, "media_type": media_type}
     await _cache_put("photo", cache_key, payload, PHOTO_CACHE_TTL_SECONDS)
@@ -1143,9 +1154,9 @@ async def place_details(place_id: str, lang: str = "el"):
         headers = {"X-Goog-Api-Key": GOOGLE_MAPS_API_KEY, "X-Goog-FieldMask": field_mask}
         async with httpx.AsyncClient(timeout=15.0) as hc:
             resp = await hc.get(url, headers=headers, params={"languageCode": lang})
-        _record_google_call("place_details")
         if resp.status_code != 200:
             raise HTTPException(status_code=502, detail="Places provider error")
+        _record_google_call("place_details")  # count only successful (billable) calls
         p = resp.json()
         name = p.get("displayName", {}).get("text", "")
         loc = p.get("location", {})
